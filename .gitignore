@@ -1,0 +1,8 @@
+runs/
+_smoke/
+.env
+__pycache__/
+*.pyc
+data/
+.claude/
+por_aprobar.md
