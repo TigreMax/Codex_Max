@@ -60,6 +60,7 @@ class Health:
         self.lock = threading.Lock()
         self.cool = {}
         self.limits = {}
+        self.first_limit = {}   # desde cuando esta limitado cada agente sin ningun exito
         self.dead = {}
         self.sem = {n: threading.Semaphore(SIMULT.get(n, 1)) for n in ADAPTERS}
 
@@ -71,6 +72,7 @@ class Health:
         with self.lock:
             now = time.time()
             self.limits[n] = self.limits.get(n, 0) + 1
+            self.first_limit.setdefault(n, now)
             reset = parse_reset(texto, now)
             self.cool[n] = (reset + 60 if reset is not None else
                             now + min(self.limits[n] * 10, 30) * 60)
@@ -78,7 +80,15 @@ class Health:
     def ok(self, n):
         with self.lock:
             self.limits.pop(n, None)
+            self.first_limit.pop(n, None)
             self.cool.pop(n, None)
+
+    def limited_for(self, names):
+        """Segundos que llevan bloqueados TODOS estos agentes (sin ningun exito entre medias)."""
+        with self.lock:
+            now = time.time()
+            live = [n for n in names if n not in self.dead]
+            return now - max((self.first_limit.get(n, now) for n in live), default=now)
 
     def kill(self, n, why):
         with self.lock:
@@ -102,7 +112,8 @@ class Router:
 
     def pick(self, kind, exclude=(), prefer_not=(), timeout=None):
         """Devuelve un agente disponible; espera enfriamientos; None si no hay ninguno."""
-        end = time.time() + (self.timeout if timeout is None else timeout)
+        limite = self.timeout if timeout is None else timeout
+        end = time.time() + limite
         while True:
             cands = self.candidates(kind, exclude)
             ok = [n for n in cands if self.h.available(n)]
@@ -112,7 +123,9 @@ class Router:
             w = self.h.wait_secs(cands)
             if w is None:
                 return None
-            if time.time() + w > end:
+            # La espera maxima es ACUMULADA: si ya llevan mas de `limite` bloqueados (reintentando cada
+            # 30 min sin exito) se pausa la corrida en vez de sondear para siempre (cuota semanal).
+            if time.time() + w > end or self.h.limited_for(cands) + w > limite:
                 raise CuotaAgotada([n for n in cands if n not in self.h.dead], time.time() + w)
             self.log(f"[router] todos en enfriamiento; espero {int(w)}s")
             time.sleep(min(max(w, 5), 60))
