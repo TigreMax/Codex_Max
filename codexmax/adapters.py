@@ -146,7 +146,7 @@ class Codex(Adapter):
             os.unlink(outfile)
         except OSError:
             pass
-        return self._finish(rc, out, err, secs, to, text, _uso_codex(out))
+        return self._finish(rc, out, err, secs, to, text, _uso_codex(out + "\n" + err))
 
 
 # Herramientas MCP de Google que se permiten SIN pantalla: solo lectura.

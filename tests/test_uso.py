@@ -13,11 +13,11 @@ from codexmax.__main__ import main
 
 
 class Extraccion(unittest.TestCase):
-    def run_adapter(self, adapter, out, rc=0, timedout=False):
+    def run_adapter(self, adapter, out, rc=0, timedout=False, err=""):
         def execute(cmd, *args):
             if isinstance(adapter, Codex):
                 Path(cmd[cmd.index("-o") + 1]).write_text("respuesta", encoding="utf-8")
-            return rc, out, "", 1.25, timedout
+            return rc, out, err, 1.25, timedout
         with patch("codexmax.adapters._exec", side_effect=execute), \
                 patch("codexmax.adapters.mcp_allow_rules", return_value=[]), \
                 patch("codexmax.adapters.shutil.which", return_value="cli"):
@@ -41,6 +41,9 @@ class Extraccion(unittest.TestCase):
                          dict(tokens_total=4635))
         self.assertEqual(self.run_adapter(Codex(), "tokens used\n123\n").uso, dict(tokens_total=123))
         self.assertEqual(self.run_adapter(Codex(), "sin datos").uso, {})
+        # la CLI real imprime los tokens por stderr
+        self.assertEqual(self.run_adapter(Codex(), "OK", err="codex\nOK\ntokens used\n9,436\n").uso,
+                         dict(tokens_total=9436))
 
     def test_raros_y_ausentes(self):
         for adapter in (Claude(), Agy()):
