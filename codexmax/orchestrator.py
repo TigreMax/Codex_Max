@@ -102,8 +102,15 @@ class Orchestrator:
             '{"tasks":[{"id":"t1","title":"...","kind":"code|research|text",'
             '"prompt":"instrucciones completas y autocontenidas","done_when":"criterio comprobable",'
             '"deps":[]}]}\n'
-            "Reglas: maximo 8 tareas; ids unicos; si dos tareas tocan los mismos archivos, la segunda "
-            "debe depender de la primera; no incluyas tareas de publicar, enviar o hacer push."
+            "Reglas: ids unicos; no incluyas tareas de publicar, enviar o hacer push. "
+            "USA EL MENOR NUMERO DE TAREAS POSIBLE: cada tarea cuesta un ciclo completo de autor + revisor. "
+            "Si el objetivo es chico o toca pocos archivos relacionados, devuelve UNA sola tarea. "
+            "Solo separa en varias (maximo 5) cuando sean partes realmente independientes o de naturaleza distinta "
+            "(por ejemplo investigar vs programar). NUNCA crees tareas aparte para 'documentar', 'escribir pruebas' "
+            "o 'verificacion final': eso va dentro de la tarea que cambia el codigo. "
+            "Si dos tareas tocan los mismos archivos, la segunda debe depender de la primera. "
+            "Copia en el prompt de cada tarea las restricciones EXPLICITAS del objetivo (limites de longitud, "
+            "archivos permitidos, formato) tal cual."
         )
         exclude = set()
         for _ in range(3):
@@ -154,6 +161,10 @@ class Orchestrator:
                 "\n" + f"TAREA: {t['title']}\n{t['prompt']}\nCRITERIO: {t['done_when']}\n\n"
                 f"CAMBIOS (git diff):\n{self.ws.diff(tree)}\n\n"
                 "Verifica que el criterio se cumple de verdad (lee archivos, corre pruebas si existen). "
+                "Ademas compara punto por punto el diff contra las RESTRICCIONES EXPLICITAS de la tarea "
+                "(limites de longitud como 'una linea', archivos permitidos, formato pedido, cosas que no debia "
+                "tocar). Si algo agrego de mas (informes, secciones, archivos no pedidos) o se paso de un limite, "
+                "es FALTA aunque funcione. "
                 "Se estricto con errores reales; no pidas mejoras esteticas. Termina con UNA linea final exacta:\n"
                 "VEREDICTO: APROBADO\n  o\nVEREDICTO: FALTA - <que falta, concreto>")
             r = self.call(rev, prompt, tree, False, 900)
