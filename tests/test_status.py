@@ -60,8 +60,8 @@ class Status(unittest.TestCase):
         self.assertEqual([corrida["id"] for corrida in corridas],
                          ["corrida-01", "corrida-02"])
         self.assertEqual(formatear(corridas).splitlines(), [
-            "corrida-01  1/1 hechas  t1:hecha",
-            "corrida-02  0/1 hechas  t2:pendiente  INTERRUMPIDA",
+            f"corrida-01  1/1 hechas  t1:hecha  {self.runs_dir / 'corrida-01'}",
+            f"corrida-02  0/1 hechas  t2:pendiente  INTERRUMPIDA  {self.runs_dir / 'corrida-02'}",
         ])
 
     def test_carpeta_sin_base_se_ignora(self):
@@ -81,8 +81,8 @@ class Status(unittest.TestCase):
         self.assertTrue(corridas[0]["error"])
         self.assertEqual(corridas[1]["hechas"], 1)
         lineas = formatear(corridas).splitlines()
-        self.assertEqual(lineas[0], f"corrupta  ERROR: {corridas[0]['error']}")
-        self.assertEqual(lineas[1], "valida  1/1 hechas  t1:hecha")
+        self.assertEqual(lineas[0], f"corrupta  ERROR: {corridas[0]['error']}  {self.runs_dir / 'corrupta'}")
+        self.assertEqual(lineas[1], f"valida  1/1 hechas  t1:hecha  {self.runs_dir / 'valida'}")
 
     def test_error_multilinea_conserva_una_linea_por_corrida(self):
         self.assertEqual(formatear([{
@@ -103,7 +103,7 @@ class Status(unittest.TestCase):
         with redirect_stdout(salida):
             main_status(self.runs_dir)
         self.assertEqual(salida.getvalue(),
-                         "corrida-01  2/3 hechas  t1:hecha t2:hecha t3:pendiente  INTERRUMPIDA\n")
+                         f"corrida-01  2/3 hechas  t1:hecha t2:hecha t3:pendiente  INTERRUMPIDA  {self.runs_dir / 'corrida-01'}\n")
 
 
 if __name__ == "__main__":

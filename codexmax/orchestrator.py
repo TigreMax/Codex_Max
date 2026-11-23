@@ -16,6 +16,8 @@ from .workspace import Workspace
 from .uso import limpiar_uso, reporte_consumo
 from .avisos import avisar
 from . import modelos
+from .registro import registrar_uso
+from .core import ROOT
 
 MAX_INTENTOS = 4          # 2 con el mismo agente, 3.o con otro, 4.o ultimo
 MODELO_NO_DISPONIBLE = re.compile(r"not found|unknown|invalid|not supported|no existe", re.I)
@@ -55,7 +57,8 @@ def _acyclic(tasks):
 
 
 class Orchestrator:
-    def __init__(self, repo, goal, run_dir, run_id, apply=False, workers=3, aceptar=(), espera_max_horas=6):
+    def __init__(self, repo, goal, run_dir, run_id, apply=False, workers=3, aceptar=(), espera_max_horas=6,
+                 data_dir=None):
         self.repo, self.goal, self.run_id, self.apply = Path(repo), goal, run_id, apply
         self.aceptar = set(a.replace("\\", "/") for a in aceptar)
         self.run_dir = Path(run_dir)
@@ -67,6 +70,7 @@ class Orchestrator:
         self.router = Router(self.health, self.log, espera_max_horas * 3600)
         self.pause_lock = threading.Lock()
         self.uso_lock = threading.Lock()
+        self.data_dir = Path(data_dir) if data_dir is not None else ROOT / "data"
         self.pausada_hasta = None
         self.ws = Workspace(repo, run_dir, run_id)
         self.workers = workers
@@ -90,6 +94,7 @@ class Orchestrator:
             with self.uso_lock:
                 with (self.run_dir / "uso.jsonl").open("a", encoding="utf-8") as stream:
                     stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
+                registrar_uso(entry, self.data_dir)
             self.log(f"[{agent}] {'escribe' if write else 'lee'} -> {result.kind} en {result.seconds:.0f}s"
                      + ("" if result.ok else f" | {result.error[-300:]!r}"))
             calls = self.run_dir / "llamadas"
@@ -109,7 +114,7 @@ class Orchestrator:
                          f"Detalle: {r.error[:300]}",
                          {"claude": "claude   (abrirlo una vez e iniciar sesion)", "codex": "codex login",
                           "agy": "agy  (abrirlo una vez e iniciar sesion)"}.get(agent),
-                         self.run_id)
+                         self.run_id, path=self.run_dir / "por_aprobar.md")
         if r.ok:
             self.health.ok(agent)
         return r
@@ -269,7 +274,8 @@ class Orchestrator:
         self.log(f"[{tid}] BLOQUEADA tras {intento} intentos")
         pedir_humano(f"Tarea atascada: {t['title']}",
                      f"Run {self.run_id}, tarea {tid}. {intento} intentos con {', '.join(tried) or 'ningun agente'}.\n"
-                     f"Ultimo problema: {critique[:600]}\nCarpeta: {tree}", None, self.run_id)
+                     f"Ultimo problema: {critique[:600]}\nCarpeta: {tree}", None, self.run_id,
+                     path=self.run_dir / "por_aprobar.md")
 
     # ---------- ciclo principal ----------
     def run(self):
@@ -290,7 +296,8 @@ class Orchestrator:
             pedir_humano("Archivos sensibles en el repositorio",
                          f"Run {self.run_id} NO inicio. Git rastrea archivos que parecen secretos y se enviarian a "
                          f"Codex, Claude y agy:\n{lista}\nSaquelos de git (git rm --cached) o, si estan bien, "
-                         f"corra con --aceptar <ruta> para cada uno.", None, self.run_id)
+                         f"corra con --aceptar <ruta> para cada uno.", None, self.run_id,
+                         path=self.run_dir / "por_aprobar.md")
             raise SystemExit("FILTRO: archivos sensibles en el repositorio:\n" + lista +
                              "\nQuitelos de git o use --aceptar <ruta> (detalle en por_aprobar.md).")
         self.ws.prepare()
@@ -331,13 +338,15 @@ class Orchestrator:
         if self.pausada_hasta is not None:
             hora = time.strftime("%Y-%m-%d %H:%M", time.localtime(self.pausada_hasta))
             avisar(f"PAUSADA POR CUOTA: {self.run_id}",
-                   f"Reinicio: {hora}. Retomar: python -m codexmax resume {self.run_id}")
+                   f"Reinicio: {hora}. Retomar: python -m codexmax resume {self.run_id}",
+                   log_path=self.run_dir / "avisos.log")
         else:
             rows = self.store.all()
             hechas = sum(r["status"] == "hecha" for r in rows)
             bloqueadas = sum(r["status"] == "bloqueada" for r in rows)
             avisar(f"Corrida terminada: {self.run_id}",
-                   f"{hechas}/{len(rows)} tareas hechas; {bloqueadas} bloqueadas.")
+                   f"{hechas}/{len(rows)} tareas hechas; {bloqueadas} bloqueadas.",
+                   log_path=self.run_dir / "avisos.log")
 
     def save_outcome(self):
         meta = read_meta(self.run_dir)

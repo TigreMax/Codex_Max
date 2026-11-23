@@ -5,21 +5,23 @@ from pathlib import Path
 
 from .core import ROOT
 from .lifecycle import process_alive, read_meta
+from .registro import carpetas
 
 
 def listar_corridas(runs_dir):
     """Lista corridas por id y tareas por orden de insercion, en solo lectura."""
-    runs_dir = Path(runs_dir)
-    if not runs_dir.exists():
-        return []
-
     corridas = []
-    for carpeta in sorted(runs_dir.iterdir(), key=lambda path: path.name):
+    for run_id, carpeta in carpetas(runs_dir):
+        corrida = {"id": run_id, "ruta": str(carpeta), "hechas": 0, "total": 0, "tareas": []}
+        if not carpeta.exists():
+            corrida["error"] = "carpeta no encontrada"
+            corridas.append(corrida)
+            continue
         db_path = carpeta / "state.db"
         if not carpeta.is_dir() or not db_path.exists():
+            corrida["error"] = "state.db no encontrada"
+            corridas.append(corrida)
             continue
-
-        corrida = {"id": carpeta.name, "hechas": 0, "total": 0, "tareas": []}
         conexion = None
         try:
             conexion = sqlite3.connect(db_path.resolve().as_uri() + "?mode=ro", uri=True)
@@ -48,7 +50,8 @@ def formatear(corridas):
     for corrida in corridas:
         if "error" in corrida:
             error = " ".join(corrida["error"].splitlines())
-            lineas.append(f"{corrida['id']}  ERROR: {error}")
+            lineas.append(f"{corrida['id']}  ERROR: {error}" +
+                          (f"  {corrida['ruta']}" if corrida.get("ruta") else ""))
             continue
         tareas = " ".join(f"{tid}:{status}" for tid, status in corrida["tareas"])
         linea = f"{corrida['id']}  {corrida['hechas']}/{corrida['total']} hechas"
@@ -59,6 +62,8 @@ def formatear(corridas):
             linea += f"  PAUSADA POR CUOTA (hasta {hora})"
         elif corrida.get("interrumpida"):
             linea += "  INTERRUMPIDA"
+        if corrida.get("ruta"):
+            linea += f"  {corrida['ruta']}"
         lineas.append(linea)
     return "\n".join(lineas)
 

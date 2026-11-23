@@ -26,13 +26,13 @@ $app = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell
 '''
 
 
-def avisar(titulo, texto):
+def avisar(titulo, texto, log_path=None):
     """Registra siempre; intenta un toast por titulo cada 600 s por proceso."""
     try:
         titulo, texto = str(titulo), str(texto)
         # JSON mantiene una sola linea aunque el mensaje incluya saltos de linea.
         try:
-            with LOG.open("a", encoding="utf-8") as stream:
+            with (Path(log_path) if log_path is not None else LOG).open("a", encoding="utf-8") as stream:
                 stream.write(json.dumps(dict(fecha=time.time(), titulo=titulo, texto=texto),
                                         ensure_ascii=False) + "\n")
         except Exception:

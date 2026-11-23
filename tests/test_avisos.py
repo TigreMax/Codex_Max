@@ -77,6 +77,8 @@ class Avisos(unittest.TestCase):
 
     def test_cli_disables_only_toast_and_restores_environment(self):
         with patch("sys.argv", ["codexmax", "run", "--repo", ".", "--goal", "prueba", "--sin-avisos"]), \
+                patch("codexmax.__main__.excluir_codexmax"), \
+                patch("codexmax.__main__.ROOT", self.root), \
                 patch("codexmax.orchestrator.Orchestrator") as orchestrator:
             orchestrator.return_value.run.side_effect = lambda: avisos.avisar("fin", "prueba")
             main()
