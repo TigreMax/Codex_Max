@@ -55,7 +55,7 @@ class Comandos(unittest.TestCase):
                        "-o", "<salida>", "-"], ["-m", "gpt-6-sol", "-c", 'model_reasoning_effort="medium"']),
             (Agy(), ["cli", "-p", "SOLO LECTURA: no crees ni modifiques archivos; responde en texto.\nprompt",
                      "--output-format", "json", "--sandbox", "--print-timeout", "1800s"],
-             ["-m", "gemini-4-hydrogen-medium"]),
+             ["--model", "gemini-4-hydrogen-medium"]),
             (Claude(), ["cli", "-p", "--output-format", "json", "--no-session-persistence",
                         "--disallowedTools", "Bash(git push*) " + Claude.NO_LEER,
                         "--disallowedTools", "Edit Write NotebookEdit", "--allowedTools", Claude.SAFE],

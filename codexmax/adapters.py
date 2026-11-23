@@ -187,7 +187,7 @@ class Agy(Adapter):
         cmd = [self.path, "-p", prompt, "--output-format", "json", "--sandbox",
                "--print-timeout", f"{int(timeout)}s"]
         if _simple_arg(modelo) and _simple_arg(esfuerzo):
-            cmd += ["-m", f"{modelo}-{esfuerzo}"]
+            cmd += ["--model", f"{modelo}-{esfuerzo}"]
         rules = mcp_allow_rules()
         if rules:   # --settings vale solo para esta ejecucion: no se guarda nada
             cmd += ["--settings", json.dumps({"permissions": {"allow": rules}})]
