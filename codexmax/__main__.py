@@ -21,6 +21,11 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("doctor")
     sub.add_parser("status", help="consulta las corridas guardadas en runs/ en solo lectura")
+    resume = sub.add_parser("resume", help="continua una corrida interrumpida")
+    resume.add_argument("id")
+    resume.add_argument("--reintentar", action="store_true")
+    close = sub.add_parser("close", help="cierra tareas pendientes sin borrar archivos")
+    close.add_argument("id")
     r = sub.add_parser("run")
     r.add_argument("--repo", required=True)
     g = r.add_mutually_exclusive_group(required=True)
@@ -36,6 +41,9 @@ def main():
         return main_status()
     if a.cmd == "doctor":
         return doctor()
+    if a.cmd in ("resume", "close"):
+        from .lifecycle import recover
+        return recover(a.id, ROOT / "runs", getattr(a, "reintentar", False), a.cmd == "close")
     from .orchestrator import Orchestrator
     goal = a.goal or open(a.goal_file, encoding="utf-8").read()
     run_id = time.strftime("%Y%m%d-%H%M%S")
