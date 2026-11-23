@@ -14,9 +14,11 @@ Kimi quedo fuera. Quien hace un trabajo nunca lo aprueba: el revisor siempre es 
 ## Uso
 ```
 python -m codexmax doctor
+python -m codexmax status
 python -m codexmax run --repo "D:\ruta\al\repo" --goal "lo que quieres lograr"
 python -m codexmax run --repo ... --goal-file objetivo.md --apply
 ```
+status: lista las corridas guardadas en runs/ (id, tareas hechas/total y estado de cada tarea) leyendo su state.db
 - El repo debe ser git y estar limpio. Todo ocurre en ramas `cm/<run>/...` y worktrees en `runs/<run>/wt/`.
 - FALTA del revisor -> reintento con la critica; 3.er intento cambia de agente; 4.o fallido -> pide al jefe.
 - Nunca hace `git push`. Lo hecho queda en `cm/<run>/_integracion`; `--apply` avanza tu rama (solo fast-forward).
