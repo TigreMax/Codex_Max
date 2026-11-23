@@ -21,6 +21,7 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("doctor")
     sub.add_parser("status", help="consulta las corridas guardadas en runs/ en solo lectura")
+    sub.add_parser("uso", help="muestra consumo local por agente en 5h, 7d y total")
     resume = sub.add_parser("resume", help="continua una corrida interrumpida")
     resume.add_argument("id")
     resume.add_argument("--reintentar", action="store_true")
@@ -37,6 +38,9 @@ def main():
     r.add_argument("--aceptar", action="append", default=[], metavar="RUTA",
                    help="acepta enviar este archivo sensible que git rastrea (repetible)")
     a = ap.parse_args()
+    if a.cmd == "uso":
+        from .uso import main_uso
+        return main_uso(ROOT / "runs")
     if a.cmd == "status":
         from .status import main_status
         return main_status()
