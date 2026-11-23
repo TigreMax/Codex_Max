@@ -1,5 +1,6 @@
 """Consulta de corridas guardadas sin modificar sus bases de datos."""
 import sqlite3
+import time
 from pathlib import Path
 
 from .core import ROOT
@@ -27,6 +28,7 @@ def listar_corridas(runs_dir):
             corrida["total"] = len(tareas)
             corrida["hechas"] = sum(status == "hecha" for _, status in tareas)
             meta = read_meta(carpeta)
+            corrida["pausada_hasta"] = (meta or {}).get("pausada_hasta")
             corrida["interrumpida"] = (any(status in ("en_curso", "pendiente") for _, status in tareas)
                                        and (meta is None or not process_alive(meta.get("pid"))))
         except (sqlite3.Error, OSError, ValueError) as exc:
@@ -52,7 +54,10 @@ def formatear(corridas):
         linea = f"{corrida['id']}  {corrida['hechas']}/{corrida['total']} hechas"
         if tareas:
             linea += "  " + tareas
-        if corrida.get("interrumpida"):
+        if corrida.get("pausada_hasta") is not None:
+            hora = time.strftime("%H:%M", time.localtime(corrida["pausada_hasta"]))
+            linea += f"  PAUSADA POR CUOTA (hasta {hora})"
+        elif corrida.get("interrumpida"):
             linea += "  INTERRUMPIDA"
         lineas.append(linea)
     return "\n".join(lineas)

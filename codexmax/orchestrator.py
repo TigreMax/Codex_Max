@@ -3,18 +3,18 @@ import json
 import os
 import re
 import time
+import threading
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from pathlib import Path
 
 from .adapters import ADAPTERS, GOOGLE_READ_ONLY, configured_mcp
-from .core import Health, Router, Bitacora, pedir_humano
+from .core import Health, Router, Bitacora, pedir_humano, CuotaAgotada
 from .store import Store
-from .lifecycle import timestamp, write_meta
+from .lifecycle import timestamp, write_meta, read_meta
 from . import guard
 from .workspace import Workspace
 
 MAX_INTENTOS = 4          # 2 con el mismo agente, 3.o con otro, 4.o ultimo
-COOLDOWN_LIMITE = 15 * 60
 REGLAS = (
     "REGLAS: trabaja SOLO dentro de esta carpeta. No hagas git push ni publiques nada. "
     "No escribas claves ni contrasenas en archivos (usa variables de entorno). "
@@ -51,7 +51,7 @@ def _acyclic(tasks):
 
 
 class Orchestrator:
-    def __init__(self, repo, goal, run_dir, run_id, apply=False, workers=3, aceptar=()):
+    def __init__(self, repo, goal, run_dir, run_id, apply=False, workers=3, aceptar=(), espera_max_horas=6):
         self.repo, self.goal, self.run_id, self.apply = Path(repo), goal, run_id, apply
         self.aceptar = set(a.replace("\\", "/") for a in aceptar)
         self.run_dir = Path(run_dir)
@@ -59,7 +59,10 @@ class Orchestrator:
         self.log = Bitacora(self.run_dir / "bitacora.md")
         self.store = Store(self.run_dir / "state.db")
         self.health = Health()
-        self.router = Router(self.health, self.log)
+        self.espera_max_horas = espera_max_horas
+        self.router = Router(self.health, self.log, espera_max_horas * 3600)
+        self.pause_lock = threading.Lock()
+        self.pausada_hasta = None
         self.ws = Workspace(repo, run_dir, run_id)
         self.workers = workers
 
@@ -79,7 +82,7 @@ class Orchestrator:
         if not write and Path(cwd).name != "_integracion":
             self.ws.reset(cwd)                 # el revisor/lector nunca deja cambios
         if r.kind == "limit":
-            self.health.cooldown(agent, COOLDOWN_LIMITE)
+            self.health.cooldown(agent, r.error + "\n" + r.text)
         elif r.kind == "auth":
             self.health.kill(agent, r.error)
             pedir_humano(f"Iniciar sesion en {agent}",
@@ -88,6 +91,8 @@ class Orchestrator:
                          {"claude": "claude   (abrirlo una vez e iniciar sesion)", "codex": "codex login",
                           "agy": "agy  (abrirlo una vez e iniciar sesion)"}.get(agent),
                          self.run_id)
+        if r.ok:
+            self.health.ok(agent)
         return r
 
     # ---------- planificacion ----------
@@ -153,11 +158,10 @@ class Orchestrator:
         """Pide veredicto a un agente distinto del autor; si el revisor falla, prueba otro."""
         skip = {author}
         why = "no hay otro agente disponible para revisar"
-        for _ in range(3):
-            rev = self.router.pick("review", exclude=skip, timeout=1800)
+        while len(skip - {author}) < 3:
+            rev = self.router.pick("review", exclude=skip)
             if not rev:
                 return None, "", why
-            skip.add(rev)
             prompt = (
                 "Eres REVISOR (solo lectura: no modifiques archivos). Otro agente hizo esta tarea; tu no."
                 "\n" + f"TAREA: {t['title']}\n{t['prompt']}\nCRITERIO: {t['done_when']}\n\n"
@@ -170,6 +174,9 @@ class Orchestrator:
                 "Se estricto con errores reales; no pidas mejoras esteticas. Termina con UNA linea final exacta:\n"
                 "VEREDICTO: APROBADO\n  o\nVEREDICTO: FALTA - <que falta, concreto>")
             r = self.call(rev, prompt, tree, False, 900)
+            if r.kind == "limit":
+                continue
+            skip.add(rev)
             if not r.ok:
                 why = f"revisor {rev} fallo: {r.kind}"
                 continue
@@ -181,7 +188,19 @@ class Orchestrator:
             return v == "APROBADO", rev, (r.text[-1500:] if v == "FALTA" else "")
         return None, "", why
 
+    def pause(self, exc):
+        with self.pause_lock:
+            self.pausada_hasta = max(self.pausada_hasta or 0, exc.hasta)
+
     def process(self, t):
+        try:
+            self._process(t)
+        except CuotaAgotada as exc:
+            self.pause(exc)
+            self.store.set(t["id"], status="pendiente")
+            self.log(f"[{t['id']}] PAUSADA POR CUOTA")
+
+    def _process(self, t):
         tid, critique, tried = t["id"], "", []
         tree = self.ws.task_tree(tid)
         intento = 0
@@ -237,6 +256,7 @@ class Orchestrator:
     def run(self):
         meta = dict(repo=str(self.repo.resolve()), goal=self.goal, apply=self.apply,
                     workers=self.workers, aceptar=sorted(self.aceptar),
+                    espera_max_horas=self.espera_max_horas,
                     started=timestamp(), pid=os.getpid())
         write_meta(self.run_dir, meta)
         if self.ws.is_dirty():
@@ -256,21 +276,29 @@ class Orchestrator:
                              "\nQuitelos de git o use --aceptar <ruta> (detalle en por_aprobar.md).")
         self.ws.prepare()
         self.log(f"=== run {self.run_id} | repo {self.repo} | rama base {self.ws.current_branch()}")
-        tasks = self.plan()
+        try:
+            tasks = self.plan()
+        except CuotaAgotada as exc:
+            self.pause(exc)
+            tasks = [dict(id="t1", title="Objetivo completo", kind="code",
+                          prompt=self.goal, done_when="El objetivo se cumple.", deps=[])]
         for t in tasks:
             self.store.add(t)
         self.execute()
-        meta["finished"] = timestamp()
-        write_meta(self.run_dir, meta)
+        self.save_outcome()
 
     def execute(self):
         """Ejecuta las tareas guardadas sin volver a planificar."""
         running = {}
         with ThreadPoolExecutor(max_workers=self.workers) as ex:
             while True:
-                for r in self.store.ready():
-                    self.store.set(r["id"], status="en_curso")
-                    running[ex.submit(self.process, r)] = r
+                if self.pausada_hasta is None:
+                    for r in self.store.ready():
+                        with self.pause_lock:
+                            if self.pausada_hasta is not None or len(running) >= self.workers:
+                                break
+                            self.store.set(r["id"], status="en_curso")
+                            running[ex.submit(self.process, r)] = r
                 if not running:
                     break
                 done, _ = wait(running, return_when=FIRST_COMPLETED)
@@ -279,13 +307,29 @@ class Orchestrator:
                     if f.exception():
                         self.log(f"[{r['id']}] ERROR interno: {f.exception()}")
                         self.store.set(r["id"], status="bloqueada", note=str(f.exception())[:300])
+        self.save_outcome()
         self.report()
+
+    def save_outcome(self):
+        meta = read_meta(self.run_dir)
+        if meta is not None:
+            if self.pausada_hasta is not None:
+                meta["pausada_hasta"] = self.pausada_hasta
+                meta.pop("finished", None)
+            else:
+                meta.pop("pausada_hasta", None)
+                meta["finished"] = timestamp()
+            write_meta(self.run_dir, meta)
 
     def report(self):
         rows = self.store.all()
         hechas = sum(r["status"] == "hecha" for r in rows)
         lines = [f"# Reporte run {self.run_id}", f"Objetivo: {self.goal}", "",
                  f"Rama de integracion: `{self.ws.integ_branch}` ({hechas}/{len(rows)} tareas hechas)", ""]
+        if self.pausada_hasta is not None:
+            hora = time.strftime("%Y-%m-%d %H:%M", time.localtime(self.pausada_hasta))
+            lines.extend([f"PAUSADA POR CUOTA hasta ~{hora}",
+                          f"Retomar: python -m codexmax resume {self.run_id}", ""])
         for r in rows:
             lines.append(f"- [{r['status']}] {r['id']} {r['title']} ({r['agent']}, {r['attempts']} intentos) {r['note']}")
         if self.apply and hechas == len(rows):

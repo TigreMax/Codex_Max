@@ -39,3 +39,6 @@ Limite conocido: no se verifico que Codex o agy no puedan leer archivos fuera de
 ## Archivos
 `codexmax/adapters.py` (comandos de cada CLI) · `core.py` (roles, salud/cuotas, canal humano) · `workspace.py` (git) · `orchestrator.py` (planificar, repartir, revisar, integrar) · `store.py` (SQLite).
 Hallazgos de las CLIs: `docs/hallazgos_cli.md`. Plan original: `PLAN.md` (anterior a los roles actuales).
+
+La cuota agotada pausa la corrida sin bloquear tareas ni pedir al jefe; status muestra PAUSADA POR CUOTA.
+run --espera-max-horas 6 limita la espera dentro del proceso; para retomar: python -m codexmax resume <id>.
