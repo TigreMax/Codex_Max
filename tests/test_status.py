@@ -80,6 +80,14 @@ class Status(unittest.TestCase):
                          ["corrupta", "valida"])
         self.assertTrue(corridas[0]["error"])
         self.assertEqual(corridas[1]["hechas"], 1)
+        lineas = formatear(corridas).splitlines()
+        self.assertEqual(lineas[0], f"corrupta  ERROR: {corridas[0]['error']}")
+        self.assertEqual(lineas[1], "valida  1/1 hechas  t1:hecha")
+
+    def test_error_multilinea_conserva_una_linea_por_corrida(self):
+        self.assertEqual(formatear([{
+            "id": "corrupta", "error": "primera linea\nsegunda linea",
+        }]), "corrupta  ERROR: primera linea segunda linea")
 
     def test_main_status_imprime_directorio_vacio(self):
         salida = io.StringIO()

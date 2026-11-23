@@ -20,7 +20,7 @@ def main():
     ap = argparse.ArgumentParser(prog="codexmax")
     sub = ap.add_subparsers(dest="cmd", required=True)
     sub.add_parser("doctor")
-    sub.add_parser("status")
+    sub.add_parser("status", help="consulta las corridas guardadas en runs/ en solo lectura")
     r = sub.add_parser("run")
     r.add_argument("--repo", required=True)
     g = r.add_mutually_exclusive_group(required=True)
