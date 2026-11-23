@@ -23,6 +23,8 @@ def main():
     sub.add_parser("doctor")
     sub.add_parser("status", help="consulta las corridas guardadas en runs/ en solo lectura")
     sub.add_parser("uso", help="muestra consumo local por agente en 5h, 7d y total")
+    sk = sub.add_parser("skills", help="instala o revisa las habilidades de skills/ para todos los agentes")
+    sk.add_argument("accion", choices=["instalar", "estado"])
     resume = sub.add_parser("resume", help="continua una corrida interrumpida")
     resume.add_argument("id")
     resume.add_argument("--reintentar", action="store_true")
@@ -40,6 +42,9 @@ def main():
     r.add_argument("--aceptar", action="append", default=[], metavar="RUTA",
                    help="acepta enviar este archivo sensible que git rastrea (repetible)")
     a = ap.parse_args()
+    if a.cmd == "skills":
+        from .skills_cmd import main_skills
+        return main_skills(a.accion)
     if a.cmd == "uso":
         from .uso import main_uso
         return main_uso(ROOT / "runs")

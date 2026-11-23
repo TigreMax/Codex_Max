@@ -48,3 +48,7 @@ Hallazgos de las CLIs: `docs/hallazgos_cli.md`. Plan original: `PLAN.md` (anteri
 
 La cuota agotada pausa la corrida sin bloquear tareas ni pedir al jefe; status muestra PAUSADA POR CUOTA.
 run --espera-max-horas 6 limita la espera dentro del proceso; para retomar: python -m codexmax resume <id>.
+
+## Habilidades (skills)
+Viven en `skills/` y las leen los 3 agentes: `python -m codexmax skills instalar` (copia a Codex `~/.agents/skills`, Antigravity `~/.gemini/antigravity-cli/skills` y Claude `~/.claude/skills`; lo ajeno se respalda, no se borra) y `skills estado`.
+Las bibliotecas grandes (ciberseguridad, cientifica, diagram-design) siguen en `D:\Cortex_externas`; las habilidades solo las apuntan. Para crear una nueva: habilidad `nueva-habilidad`.
