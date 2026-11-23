@@ -5,7 +5,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 from pathlib import Path
 
-from .adapters import ADAPTERS
+from .adapters import ADAPTERS, GOOGLE_READ_ONLY, configured_mcp
 from .core import Health, Router, Bitacora, pedir_humano
 from .store import Store
 from .workspace import Workspace
@@ -85,10 +85,14 @@ class Orchestrator:
 
     # ---------- planificacion ----------
     def plan(self):
+        google = [s for s in configured_mcp() if s in GOOGLE_READ_ONLY]
+        extra = (f"\nNota: el agente de investigacion (agy) puede ademas LEER (solo leer) estos servicios de "
+                 f"Google del jefe: {', '.join(google)}. Usalo en tareas kind=research cuando haga falta.\n"
+                 if google else "")
         prompt = (
             "Eres el planificador de un orquestador de agentes de programacion. "
             "Lee el proyecto (solo lectura) y divide el OBJETIVO en tareas pequenas y verificables.\n"
-            f"OBJETIVO:\n{self.goal}\n\n"
+            f"OBJETIVO:\n{self.goal}\n{extra}\n"
             "Responde SOLO con JSON valido, sin texto extra, con esta forma:\n"
             '{"tasks":[{"id":"t1","title":"...","kind":"code|research|text",'
             '"prompt":"instrucciones completas y autocontenidas","done_when":"criterio comprobable",'

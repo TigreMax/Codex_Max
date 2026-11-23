@@ -14,6 +14,15 @@ Todo lo de esta tabla se comprobo ejecutando de verdad, no leyendo ayudas.
 - "Entorno de Google" de agy: hoy no tiene ningun conector de Google (Drive, Docs, Gmail, etc.) configurado. No se sabe cuales soporta; hay que decidir cuales conectar.
 - Cuotas/limites de las suscripciones y si sus terminos permiten automatizar con la CLI de forma continua.
 
+## Google (Drive, Docs, Sheets) desde agy — 2026-11-23
+- Servidores MCP oficiales de Workspace (Developer Preview), configurados en `~/.gemini/config/mcp_config.json` con un cliente OAuth "Web application" del modo personal de Google Auth Platform. Redireccion: `https://antigravity.google/oauth-callback`. Los secretos viven solo en ese archivo (fuera del repo).
+- Inicio de sesion: `/mcp` dentro de `agy` > servidor > Authenticate > pegar codigo (hay que escribir la barra `/`; sin ella lo toma como pregunta).
+- Sin pantalla, `agy` **bloquea las herramientas MCP** por defecto (`denied_actions: McpTool`). Solucion segura: `--settings '{"permissions":{"allow":["mcp(drive/list_recent_files)", ...]}}'`, que vale solo para esa ejecucion. Implementado en `adapters.py` (`GOOGLE_READ_ONLY`): solo lectura; las herramientas que escriben quedan fuera.
+- Estado al integrar: Google rechaza las llamadas con "el proyecto 1077774660671 debe estar inscrito en el Workspace Developer Preview Program". Formulario enviado el 2026-11-23; Google dice que tarda ~1 dia. Pendiente repetir la prueba de Drive tras la aprobacion.
+- Ojo: cuando una herramienta MCP falla, `agy` igual devuelve `status: SUCCESS` con el error dentro del texto; el orquestador lo vera como "ok" y depende del revisor (Claude) para detectar que no se produjo el resultado.
+- El formulario exige correo de dominio Workspace (no Gmail). Sin verificar si funciona cuando la cuenta del proyecto y la del correo inscrito son distintas.
+- Los ajustes propios de `agy` (`~/.gemini/antigravity-cli/settings.json`) ya traen prohibiciones tipo candado (rm, git push, curl, pip install, winget...).
+
 ## Pruebas de punta a punta (repo de juguete `_smoke/demo`)
 - Run 7: Claude planifico 2 tareas, Codex las hizo, Claude las reviso, 0 intervenciones humanas. Se verifico aparte: 3 pruebas unittest pasan.
 - Run 8 (investigacion): agy busco en la web, escribio `docs/mock.md` con fuente, Claude aprobo.

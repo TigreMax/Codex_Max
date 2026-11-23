@@ -11,6 +11,7 @@ import subprocess
 import tempfile
 import time
 from dataclasses import dataclass
+from pathlib import Path
 
 LIMIT_RE = re.compile(
     r"rate.?limit|quota|usage limit|too many requests|\b429\b|limit reached|"
@@ -98,6 +99,31 @@ class Codex(Adapter):
         return self._finish(rc, out, err, secs, to, text)
 
 
+# Herramientas MCP de Google que se permiten SIN pantalla: solo lectura.
+# Las que escriben o crean (create_file, copy_file, upload_file_revision, update_*,
+# insert_dimension) quedan fuera a proposito hasta que el jefe decida otra cosa.
+GOOGLE_READ_ONLY = {
+    "drive": ["search_files", "list_recent_files", "read_file_content", "get_file_metadata"],
+    "docs": ["read_doc"],
+    "sheets": ["get_spreadsheet", "get_values"],
+}
+MCP_CONFIG = Path.home() / ".gemini" / "config" / "mcp_config.json"
+
+
+def configured_mcp():
+    """Nombres de servidores MCP configurados (nunca lee ni devuelve credenciales)."""
+    try:
+        data = json.loads(MCP_CONFIG.read_text(encoding="utf-8-sig"))
+        return sorted(data.get("mcpServers", {}))
+    except (OSError, ValueError):
+        return []
+
+
+def mcp_allow_rules():
+    return [f"mcp({srv}/{tool})" for srv in configured_mcp()
+            for tool in GOOGLE_READ_ONLY.get(srv, [])]
+
+
 class Agy(Adapter):
     name = "agy"
     binary = "agy"
@@ -110,6 +136,9 @@ class Agy(Adapter):
             prompt = "SOLO LECTURA: no crees ni modifiques archivos; responde en texto.\n" + prompt
         cmd = [self.path, "-p", prompt, "--output-format", "json", "--sandbox",
                "--print-timeout", f"{int(timeout)}s"]
+        rules = mcp_allow_rules()
+        if rules:   # --settings vale solo para esta ejecucion: no se guarda nada
+            cmd += ["--settings", json.dumps({"permissions": {"allow": rules}})]
         rc, out, err, secs, to = _exec(cmd, cwd, None, timeout + 60)
         text, status = "", ""
         i = out.find("{")
