@@ -19,6 +19,12 @@ python -m codexmax run --repo "D:\ruta\al\repo" --goal "lo que quieres lograr"
 python -m codexmax run --repo ... --goal-file objetivo.md --apply
 ```
 status: lista las corridas guardadas en runs/ (id, tareas hechas/total y estado de cada tarea) leyendo su state.db
+La consulta es de solo lectura. Si una base no se puede leer, muestra `ERROR` para esa corrida y continua con las demas. Si no encuentra corridas, imprime `No hay corridas guardadas.`.
+
+Verificacion final (2026-11-23), desde la raiz del repo:
+- `python -m unittest discover -s tests`: 16 pruebas pasan.
+- `python -m codexmax status`: termina sin error con `No hay corridas guardadas.` en esta copia de trabajo.
+
 - El repo debe ser git y estar limpio. Todo ocurre en ramas `cm/<run>/...` y worktrees en `runs/<run>/wt/`.
 - FALTA del revisor -> reintento con la critica; 3.er intento cambia de agente; 4.o fallido -> pide al jefe.
 - Nunca hace `git push`. Lo hecho queda en `cm/<run>/_integracion`; `--apply` avanza tu rama (solo fast-forward).

@@ -40,6 +40,10 @@ def formatear(corridas):
         return "No hay corridas guardadas."
     lineas = []
     for corrida in corridas:
+        if "error" in corrida:
+            error = " ".join(corrida["error"].splitlines())
+            lineas.append(f"{corrida['id']}  ERROR: {error}")
+            continue
         tareas = " ".join(f"{tid}:{status}" for tid, status in corrida["tareas"])
         linea = f"{corrida['id']}  {corrida['hechas']}/{corrida['total']} hechas"
         if tareas:
