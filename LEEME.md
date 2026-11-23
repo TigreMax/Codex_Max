@@ -20,6 +20,7 @@ python -m codexmax run --repo "D:\ruta\al\repo" --goal "lo que quieres lograr"
 python -m codexmax run --repo ... --goal-file objetivo.md --apply
 ```
 `status` lista las corridas guardadas en `runs/` (hechas/total y estado de cada tarea), en solo lectura.
+Avisos Windows y registro en `avisos.log`: `run --sin-avisos` o `CODEXMAX_SIN_AVISOS=1` desactiva solo los toasts.
 `uso` muestra llamadas y tokens locales por agente (5h, 7d y total); no incluye uso fuera de Codex Max ni conoce los limites del plan.
 Cada llamada registra metricas en `uso.jsonl` y el reporte resume Consumo; `costo_usd` es equivalente API informativo, no un cobro de la suscripcion.
 `run` guarda configuracion y PID en `meta.json`; `status` indica INTERRUMPIDA cuando quedan tareas sin proceso vivo.

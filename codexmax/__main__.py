@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 import time
 
@@ -35,6 +36,7 @@ def main():
     r.add_argument("--apply", action="store_true", help="avanza la rama actual si todo salio bien (ff-only)")
     r.add_argument("--espera-max-horas", type=float, default=6)
     r.add_argument("--workers", type=int, default=3)
+    r.add_argument("--sin-avisos", action="store_true", help="desactiva toasts; conserva avisos.log")
     r.add_argument("--aceptar", action="append", default=[], metavar="RUTA",
                    help="acepta enviar este archivo sensible que git rastrea (repetible)")
     a = ap.parse_args()
@@ -52,8 +54,18 @@ def main():
     from .orchestrator import Orchestrator
     goal = a.goal or open(a.goal_file, encoding="utf-8").read()
     run_id = time.strftime("%Y%m%d-%H%M%S")
-    Orchestrator(a.repo, goal, ROOT / "runs" / run_id, run_id, a.apply, a.workers, a.aceptar,
-                 espera_max_horas=a.espera_max_horas).run()
+    anterior = os.environ.get("CODEXMAX_SIN_AVISOS")
+    try:
+        if a.sin_avisos:
+            os.environ["CODEXMAX_SIN_AVISOS"] = "1"
+        Orchestrator(a.repo, goal, ROOT / "runs" / run_id, run_id, a.apply, a.workers, a.aceptar,
+                     espera_max_horas=a.espera_max_horas).run()
+    finally:
+        if a.sin_avisos:
+            if anterior is None:
+                os.environ.pop("CODEXMAX_SIN_AVISOS", None)
+            else:
+                os.environ["CODEXMAX_SIN_AVISOS"] = anterior
 
 
 if __name__ == "__main__":
