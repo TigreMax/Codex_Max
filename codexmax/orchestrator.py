@@ -15,8 +15,10 @@ from . import guard
 from .workspace import Workspace
 from .uso import limpiar_uso, reporte_consumo
 from .avisos import avisar
+from . import modelos
 
 MAX_INTENTOS = 4          # 2 con el mismo agente, 3.o con otro, 4.o ultimo
+MODELO_NO_DISPONIBLE = re.compile(r"not found|unknown|invalid|not supported|no existe", re.I)
 REGLAS = (
     "REGLAS: trabaja SOLO dentro de esta carpeta. No hagas git push ni publiques nada. "
     "No escribas claves ni contrasenas en archivos (usa variables de entorno). "
@@ -70,23 +72,32 @@ class Orchestrator:
         self.workers = workers
 
     # ---------- llamadas a agentes ----------
-    def call(self, agent, prompt, cwd, write, timeout):
+    def call(self, agent, prompt, cwd, write, timeout, rol="code"):
         a = ADAPTERS[agent]
+        modelo, esfuerzo = modelos.elegir(agent, rol)
         with self.health.sem[agent]:
-            r = a.run(prompt, cwd, write=write, timeout=timeout)
-        entry = dict(ts=time.time(), agente=agent, escribe=bool(write), kind=r.kind, segundos=r.seconds)
-        entry.update(limpiar_uso(getattr(r, "uso", {})))
-        with self.uso_lock:
-            with (self.run_dir / "uso.jsonl").open("a", encoding="utf-8") as stream:
-                stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
-        self.log(f"[{agent}] {'escribe' if write else 'lee'} -> {r.kind} en {r.seconds:.0f}s"
-                 + ("" if r.ok else f" | {r.error[-300:]!r}"))
-        calls = self.run_dir / "llamadas"
-        calls.mkdir(exist_ok=True)
-        n = len(list(calls.iterdir())) + 1
-        (calls / f"{n:03d}_{agent}_{'w' if write else 'r'}.txt").write_text(
-            "PROMPT:\n" + prompt + f"\n\n--- RESULTADO ({r.kind}) ---\n" + r.text + "\n" + r.error,
-            encoding="utf-8")
+            r = a.run(prompt, cwd, write=write, timeout=timeout, modelo=modelo, esfuerzo=esfuerzo)
+            intentos = [(r, modelo, esfuerzo)]
+            if (not r.ok and modelo and "model" in (r.error + "\n" + r.text).lower()
+                    and MODELO_NO_DISPONIBLE.search(r.error + "\n" + r.text)):
+                self.log(f"[{agent}] modelo {modelo} no disponible; reintento con modelo por defecto de la CLI")
+                r = a.run(prompt, cwd, write=write, timeout=timeout)
+                intentos.append((r, None, None))
+        for result, used_model, used_effort in intentos:
+            entry = dict(ts=time.time(), agente=agent, modelo=used_model, esfuerzo=used_effort,
+                         escribe=bool(write), kind=result.kind, segundos=result.seconds)
+            entry.update(limpiar_uso(getattr(result, "uso", {})))
+            with self.uso_lock:
+                with (self.run_dir / "uso.jsonl").open("a", encoding="utf-8") as stream:
+                    stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
+            self.log(f"[{agent}] {'escribe' if write else 'lee'} -> {result.kind} en {result.seconds:.0f}s"
+                     + ("" if result.ok else f" | {result.error[-300:]!r}"))
+            calls = self.run_dir / "llamadas"
+            calls.mkdir(exist_ok=True)
+            n = len(list(calls.iterdir())) + 1
+            (calls / f"{n:03d}_{agent}_{'w' if write else 'r'}.txt").write_text(
+                "PROMPT:\n" + prompt + f"\n\n--- RESULTADO ({result.kind}) ---\n" + result.text + "\n" + result.error,
+                encoding="utf-8")
         if not write and Path(cwd).name != "_integracion":
             self.ws.reset(cwd)                 # el revisor/lector nunca deja cambios
         if r.kind == "limit":
@@ -132,7 +143,7 @@ class Orchestrator:
             ag = self.router.pick("plan", exclude)
             if not ag:
                 break
-            r = self.call(ag, prompt, self.ws.integ, False, 600)
+            r = self.call(ag, prompt, self.ws.integ, False, 600, "plan")
             if not r.ok:
                 exclude.add(ag) if r.kind != "limit" else None
                 continue
@@ -181,7 +192,7 @@ class Orchestrator:
                 "es FALTA aunque funcione. "
                 "Se estricto con errores reales; no pidas mejoras esteticas. Termina con UNA linea final exacta:\n"
                 "VEREDICTO: APROBADO\n  o\nVEREDICTO: FALTA - <que falta, concreto>")
-            r = self.call(rev, prompt, tree, False, 900)
+            r = self.call(rev, prompt, tree, False, 900, "review")
             if r.kind == "limit":
                 continue
             skip.add(rev)
@@ -216,7 +227,7 @@ class Orchestrator:
             ag = self.router.pick(t["kind"], prefer_not=tried[-1:] if intento >= 2 else ())
             if not ag:
                 break
-            r = self.call(ag, self.author_prompt(t, critique), tree, True, 1800)
+            r = self.call(ag, self.author_prompt(t, critique), tree, True, 1800, t["kind"])
             if r.kind == "limit" or r.kind == "auth":
                 continue                       # no cuenta como intento: se reintenta con otro agente
             intento += 1

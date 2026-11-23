@@ -21,8 +21,10 @@ python -m codexmax run --repo ... --goal-file objetivo.md --apply
 ```
 `status` lista las corridas guardadas en `runs/` (hechas/total y estado de cada tarea), en solo lectura.
 Avisos Windows y registro en `avisos.log`: `run --sin-avisos` o `CODEXMAX_SIN_AVISOS=1` desactiva solo los toasts.
-`uso` muestra llamadas y tokens locales por agente (5h, 7d y total); no incluye uso fuera de Codex Max ni conoce los limites del plan.
+`uso` muestra llamadas y tokens locales por agente y modelo (5h, 7d y total); no incluye uso fuera de Codex Max ni conoce los limites del plan.
 Cada llamada registra metricas en `uso.jsonl` y el reporte resume Consumo; `costo_usd` es equivalente API informativo, no un cobro de la suscripcion.
+Para cambiar modelos, crea `modelos.json` en la raiz: `{"codex": {"code": ["gpt-6.2-astra", "high"]}}`.
+Puedes indicar roles `plan`, `review`, `code`, `text` y `research` para `codex`, `claude` o `agy`.
 `run` guarda configuracion y PID en `meta.json`; `status` indica INTERRUMPIDA cuando quedan tareas sin proceso vivo.
 `python -m codexmax resume <id> [--reintentar]` continua sin planificar; la opcion incluye bloqueadas y omitidas.
 `python -m codexmax close <id>` cierra pendientes y genera REPORTE.md sin borrar ramas ni carpetas; admite corridas antiguas. Ambos comandos rechazan procesos vivos.

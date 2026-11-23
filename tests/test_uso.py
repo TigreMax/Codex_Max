@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from codexmax.adapters import Agy, Claude, Codex, Result
 from codexmax.orchestrator import Orchestrator
-from codexmax.uso import main_uso
+from codexmax.uso import main_uso, reporte_consumo
 from codexmax.__main__ import main
 
 
@@ -91,13 +91,13 @@ class RegistroYConsulta(unittest.TestCase):
         self.assertNotIn("PRIVADA", raw)
         self.assertNotIn("NO_GUARDAR", raw)
         rows = [json.loads(line) for line in raw.splitlines()]
-        self.assertEqual(rows[0], dict(ts=1234, agente="codex", escribe=True, kind="ok",
+        self.assertEqual(rows[0], dict(ts=1234, agente="codex", modelo="gpt-6.2-sol", esfuerzo="medium", escribe=True, kind="ok",
                                       segundos=1.5, tokens_in=3, tokens_out=4, tokens_total=7, costo_usd=0.01))
-        self.assertEqual(rows[1], dict(ts=1234, agente="codex", escribe=False, kind="limit", segundos=2))
+        self.assertEqual(rows[1], dict(ts=1234, agente="codex", modelo="gpt-6.2-sol", esfuerzo="medium", escribe=False, kind="limit", segundos=2))
         o.report()
         report = (o.run_dir / "REPORTE.md").read_text(encoding="utf-8")
         self.assertIn("## Consumo", report)
-        self.assertIn("| codex | 2 | 7 | 3.50 | 1 |", report)
+        self.assertIn("| codex | gpt-6.2-sol | 2 | 7 | 3.50 | 1 |", report)
 
     def test_ventanas_corrupcion_y_cli(self):
         now = 2_000_000
@@ -108,6 +108,7 @@ class RegistroYConsulta(unittest.TestCase):
                 for age, tokens in ((0, 1), (5*3600, 2), (5*3600+1, 4),
                                     (7*86400, 8), (7*86400+1, 16))]
         rows.append(dict(ts=now, agente="claude"))
+        rows.append(dict(ts=now, agente="codex", modelo="gpt-6.2-sol", tokens_total=9))
         (run / "uso.jsonl").write_text(
             "roto\n[]\nnull\n{\"ts\": \"raro\"}\n" +
             "\n".join(json.dumps(row) for row in rows) + "\n{truncado", encoding="utf-8")
@@ -115,8 +116,12 @@ class RegistroYConsulta(unittest.TestCase):
         with redirect_stdout(output):
             main_uso(self.root, now)
         text = output.getvalue()
-        self.assertIn("codex | 2 / 3 | 4 / 15 | 5 / 31", text)
-        self.assertIn("claude | 1 / 0 | 1 / 0 | 1 / 0", text)
+        self.assertIn("codex | (por defecto) | 2 / 3 | 4 / 15 | 5 / 31", text)
+        self.assertIn("codex | gpt-6.2-sol | 1 / 9 | 1 / 9 | 1 / 9", text)
+        self.assertIn("claude | (por defecto) | 1 / 0 | 1 / 0 | 1 / 0", text)
+        report = "\n".join(reporte_consumo(run / "uso.jsonl"))
+        self.assertIn("| codex | (por defecto) | 5 | 31 |", report)
+        self.assertIn("| codex | gpt-6.2-sol | 1 | 9 |", report)
         self.assertIn("conteos locales", text)
         self.assertIn("no incluyen el uso fuera de Codex Max", text)
         with patch("sys.argv", ["codexmax", "uso"]), \

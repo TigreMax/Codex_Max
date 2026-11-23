@@ -39,7 +39,11 @@ def leer_uso(path):
 def resumen(rows):
     agents = {}
     for row in rows:
-        totals = agents.setdefault(row["agente"], dict(llamadas=0, tokens=0, segundos=0, limites=0))
+        modelo = row.get("modelo")
+        if not isinstance(modelo, str) or not modelo:
+            modelo = "(por defecto)"
+        totals = agents.setdefault((row["agente"], modelo),
+                                   dict(llamadas=0, tokens=0, segundos=0, limites=0))
         totals["llamadas"] += 1
         totals["tokens"] += limpiar_uso(row).get("tokens_total", 0)
         if numero(row.get("segundos")):
@@ -50,10 +54,10 @@ def resumen(rows):
 
 def reporte_consumo(path):
     lines = ["", "## Consumo", "",
-             "| Agente | Llamadas | Tokens totales | Tiempo total (s) | Limites de cuota |",
-             "|---|---:|---:|---:|---:|"]
-    for agent, r in sorted(resumen(leer_uso(path)).items()):
-        lines.append(f"| {agent} | {r['llamadas']} | {r['tokens']} | {r['segundos']:.2f} | {r['limites']} |")
+             "| Agente | Modelo | Llamadas | Tokens totales | Tiempo total (s) | Limites de cuota |",
+             "|---|---|---:|---:|---:|---:|"]
+    for (agent, modelo), r in sorted(resumen(leer_uso(path)).items()):
+        lines.append(f"| {agent} | {modelo} | {r['llamadas']} | {r['tokens']} | {r['segundos']:.2f} | {r['limites']} |")
     lines += ["", "Tokens reportados por las CLIs; los datos ausentes no se estiman."]
     return lines
 
@@ -67,11 +71,12 @@ def main_uso(runs_dir=None, ahora=None):
     ventanas = [resumen(row for row in rows if ahora - hours * 3600 <= row["ts"] <= ahora)
                 for hours in (5, 7 * 24)]
     total = resumen(rows)
-    print("Agente | 5h llamadas / tokens | 7d llamadas / tokens | Total llamadas / tokens")
-    for agent in sorted(total):
-        cells = [f"{v.get(agent, {}).get('llamadas', 0)} / {v.get(agent, {}).get('tokens', 0)}"
+    print("Agente | Modelo | 5h llamadas / tokens | 7d llamadas / tokens | Total llamadas / tokens")
+    for agent, modelo in sorted(total):
+        key = (agent, modelo)
+        cells = [f"{v.get(key, {}).get('llamadas', 0)} / {v.get(key, {}).get('tokens', 0)}"
                  for v in [*ventanas, total]]
-        print(agent + " | " + " | ".join(cells))
+        print(agent + " | " + modelo + " | " + " | ".join(cells))
     if not total:
         print("Sin consumo registrado.")
     print("Son conteos locales: no incluyen el uso fuera de Codex Max (por ejemplo, el chat del jefe con Claude).")
