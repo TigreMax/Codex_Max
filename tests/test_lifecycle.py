@@ -16,6 +16,8 @@ from codexmax.workspace import Workspace
 
 class Lifecycle(unittest.TestCase):
     def setUp(self):
+        self.enterContext(patch("codexmax.orchestrator.avisar"))
+        self.enterContext(patch("codexmax.core.avisar"))
         temp = tempfile.TemporaryDirectory()
         self.addCleanup(temp.cleanup)
         self.root = Path(temp.name)

@@ -82,6 +82,10 @@ class Cuotas(unittest.TestCase):
 
 
 class CorridaCuota(unittest.TestCase):
+    def setUp(self):
+        self.enterContext(patch("codexmax.orchestrator.avisar"))
+        self.enterContext(patch("codexmax.core.avisar"))
+
     def test_pause_resume(self):
         # Todo queda dentro del workspace, incluso los worktrees temporales.
         with tempfile.TemporaryDirectory(dir=Path.cwd()) as tmp, ExitStack() as stack:

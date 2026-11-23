@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 from .adapters import ADAPTERS
+from .avisos import avisar
 
 ROOT = Path(__file__).resolve().parent.parent
 POR_APROBAR = ROOT / "por_aprobar.md"
@@ -145,6 +146,7 @@ def pedir_humano(titulo, detalle, comando=None, run_id=""):
         if comando:
             bloque += f"\nComando exacto:\n```\n{comando}\n```\n"
         POR_APROBAR.write_text(old + bloque, encoding="utf-8")
+    avisar(titulo, f"{detalle}\nRevisar por_aprobar.md")
 
 
 class Bitacora:

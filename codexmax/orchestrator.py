@@ -14,6 +14,7 @@ from .lifecycle import timestamp, write_meta, read_meta
 from . import guard
 from .workspace import Workspace
 from .uso import limpiar_uso, reporte_consumo
+from .avisos import avisar
 
 MAX_INTENTOS = 4          # 2 con el mismo agente, 3.o con otro, 4.o ultimo
 REGLAS = (
@@ -316,6 +317,16 @@ class Orchestrator:
                         self.store.set(r["id"], status="bloqueada", note=str(f.exception())[:300])
         self.save_outcome()
         self.report()
+        if self.pausada_hasta is not None:
+            hora = time.strftime("%Y-%m-%d %H:%M", time.localtime(self.pausada_hasta))
+            avisar(f"PAUSADA POR CUOTA: {self.run_id}",
+                   f"Reinicio: {hora}. Retomar: python -m codexmax resume {self.run_id}")
+        else:
+            rows = self.store.all()
+            hechas = sum(r["status"] == "hecha" for r in rows)
+            bloqueadas = sum(r["status"] == "bloqueada" for r in rows)
+            avisar(f"Corrida terminada: {self.run_id}",
+                   f"{hechas}/{len(rows)} tareas hechas; {bloqueadas} bloqueadas.")
 
     def save_outcome(self):
         meta = read_meta(self.run_dir)
