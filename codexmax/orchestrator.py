@@ -1,5 +1,6 @@
 """El cerebro: planifica, reparte, hace revisar, reintenta e integra."""
 import json
+import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
@@ -8,6 +9,7 @@ from pathlib import Path
 from .adapters import ADAPTERS, GOOGLE_READ_ONLY, configured_mcp
 from .core import Health, Router, Bitacora, pedir_humano
 from .store import Store
+from .lifecycle import timestamp, write_meta
 from . import guard
 from .workspace import Workspace
 
@@ -192,7 +194,7 @@ class Orchestrator:
                 continue                       # no cuenta como intento: se reintenta con otro agente
             intento += 1
             tried.append(ag)
-            self.store.set(tid, agent=ag, attempts=intento)
+            self.store.set(tid, agent=ag, attempts=t["attempts"] + intento)
             if not r.ok:
                 critique = f"El intento anterior fallo ({r.kind}): {r.error[:300]}"
                 continue
@@ -233,6 +235,10 @@ class Orchestrator:
 
     # ---------- ciclo principal ----------
     def run(self):
+        meta = dict(repo=str(self.repo.resolve()), goal=self.goal, apply=self.apply,
+                    workers=self.workers, aceptar=sorted(self.aceptar),
+                    started=timestamp(), pid=os.getpid())
+        write_meta(self.run_dir, meta)
         if self.ws.is_dirty():
             raise SystemExit("El repositorio tiene cambios sin guardar. Haz commit (o usa otra copia) antes de correr.")
         # Filtro de secretos: el objetivo y los archivos que git rastrea van a 3 proveedores externos.
@@ -253,6 +259,12 @@ class Orchestrator:
         tasks = self.plan()
         for t in tasks:
             self.store.add(t)
+        self.execute()
+        meta["finished"] = timestamp()
+        write_meta(self.run_dir, meta)
+
+    def execute(self):
+        """Ejecuta las tareas guardadas sin volver a planificar."""
         running = {}
         with ThreadPoolExecutor(max_workers=self.workers) as ex:
             while True:

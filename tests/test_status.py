@@ -61,7 +61,7 @@ class Status(unittest.TestCase):
                          ["corrida-01", "corrida-02"])
         self.assertEqual(formatear(corridas).splitlines(), [
             "corrida-01  1/1 hechas  t1:hecha",
-            "corrida-02  0/1 hechas  t2:pendiente",
+            "corrida-02  0/1 hechas  t2:pendiente  INTERRUMPIDA",
         ])
 
     def test_carpeta_sin_base_se_ignora(self):
@@ -103,7 +103,7 @@ class Status(unittest.TestCase):
         with redirect_stdout(salida):
             main_status(self.runs_dir)
         self.assertEqual(salida.getvalue(),
-                         "corrida-01  2/3 hechas  t1:hecha t2:hecha t3:pendiente\n")
+                         "corrida-01  2/3 hechas  t1:hecha t2:hecha t3:pendiente  INTERRUMPIDA\n")
 
 
 if __name__ == "__main__":

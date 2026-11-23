@@ -19,6 +19,9 @@ python -m codexmax run --repo "D:\ruta\al\repo" --goal "lo que quieres lograr"
 python -m codexmax run --repo ... --goal-file objetivo.md --apply
 ```
 `status` lista las corridas guardadas en `runs/` (hechas/total y estado de cada tarea), en solo lectura.
+`run` guarda configuracion y PID en `meta.json`; `status` indica INTERRUMPIDA cuando quedan tareas sin proceso vivo.
+`python -m codexmax resume <id> [--reintentar]` continua sin planificar; la opcion incluye bloqueadas y omitidas.
+`python -m codexmax close <id>` cierra pendientes y genera REPORTE.md sin borrar ramas ni carpetas; admite corridas antiguas. Ambos comandos rechazan procesos vivos.
 
 - El repo debe ser git y estar limpio. Todo ocurre en ramas `cm/<run>/...` y worktrees en `runs/<run>/wt/`.
 - FALTA del revisor -> reintento con la critica; 3.er intento cambia de agente; 4.o fallido -> pide al jefe.

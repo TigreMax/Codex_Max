@@ -3,6 +3,7 @@ import sqlite3
 from pathlib import Path
 
 from .core import ROOT
+from .lifecycle import process_alive, read_meta
 
 
 def listar_corridas(runs_dir):
@@ -25,7 +26,10 @@ def listar_corridas(runs_dir):
             corrida["tareas"] = tareas
             corrida["total"] = len(tareas)
             corrida["hechas"] = sum(status == "hecha" for _, status in tareas)
-        except (sqlite3.Error, OSError) as exc:
+            meta = read_meta(carpeta)
+            corrida["interrumpida"] = (any(status in ("en_curso", "pendiente") for _, status in tareas)
+                                       and (meta is None or not process_alive(meta.get("pid"))))
+        except (sqlite3.Error, OSError, ValueError) as exc:
             corrida["error"] = str(exc)
         finally:
             if conexion is not None:
@@ -48,6 +52,8 @@ def formatear(corridas):
         linea = f"{corrida['id']}  {corrida['hechas']}/{corrida['total']} hechas"
         if tareas:
             linea += "  " + tareas
+        if corrida.get("interrumpida"):
+            linea += "  INTERRUMPIDA"
         lineas.append(linea)
     return "\n".join(lineas)
 
