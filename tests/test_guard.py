@@ -24,7 +24,8 @@ class Nombres(unittest.TestCase):
 
 class Contenido(unittest.TestCase):
     def test_detecta_tipos_sin_devolver_valor(self):
-        for txt in (FAKE_GOOGLE, FAKE_KEY, 'password = "Zx81hqLpq92mm"'):
+        fake_pwd = 'password = "' + "Zx81hq" + "Lpq92mm" + '"'
+        for txt in (FAKE_GOOGLE, FAKE_KEY, fake_pwd):
             tipos = guard.buscar_en_texto(txt)
             self.assertTrue(tipos, txt[:10])
             self.assertNotIn(FAKE_GOOGLE, "".join(tipos))
