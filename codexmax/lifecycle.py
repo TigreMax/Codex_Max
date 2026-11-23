@@ -60,10 +60,12 @@ def write_meta(run_dir, meta):
 
 def recover(run_id, runs_dir, reintentar=False, close=False):
     from .orchestrator import Orchestrator
+    from .registro import carpetas
 
-    root = Path(runs_dir).resolve()
-    run_dir = (root / run_id).resolve()
-    if run_dir.parent != root or not (run_dir / "state.db").is_file():
+    found = dict(carpetas(runs_dir))
+    run_dir = found.get(run_id)
+    if (not run_id or Path(run_id).name != run_id or run_dir is None
+            or not (run_dir / "state.db").is_file()):
         raise SystemExit(f"Corrida inexistente o id invalido: {run_id}")
     try:
         meta = read_meta(run_dir)
@@ -78,7 +80,8 @@ def recover(run_id, runs_dir, reintentar=False, close=False):
         config.get("repo", run_dir), config.get("goal", "Corrida antigua sin meta.json"),
         run_dir, run_id, apply=config.get("apply", False) if not close else False,
         workers=config.get("workers", 3), aceptar=config.get("aceptar", []),
-        espera_max_horas=config.get("espera_max_horas", 6))
+        espera_max_horas=config.get("espera_max_horas", 6),
+        data_dir=Path(runs_dir).parent / "data")
     try:
         if not close:
             meta["pid"] = os.getpid()

@@ -135,18 +135,19 @@ class Router:
 _ask_lock = threading.Lock()
 
 
-def pedir_humano(titulo, detalle, comando=None, run_id=""):
+def pedir_humano(titulo, detalle, comando=None, run_id="", path=None):
     """UNICO canal hacia el jefe. Escribe en por_aprobar.md (sin duplicar)."""
+    path = Path(path) if path is not None else POR_APROBAR
     with _ask_lock:
-        old = POR_APROBAR.read_text(encoding="utf-8") if POR_APROBAR.exists() else \
+        old = path.read_text(encoding="utf-8") if path.exists() else \
             "# Por aprobar / requiere al jefe\n\n"
         if f"## {titulo}" in old and "[PENDIENTE]" in old.split(f"## {titulo}")[1].split("## ")[0]:
             return
         bloque = f"\n## {titulo}\n[PENDIENTE] run {run_id} - {time.strftime('%Y-%m-%d %H:%M')}\n\n{detalle}\n"
         if comando:
             bloque += f"\nComando exacto:\n```\n{comando}\n```\n"
-        POR_APROBAR.write_text(old + bloque, encoding="utf-8")
-    avisar(titulo, f"{detalle}\nRevisar por_aprobar.md")
+        path.write_text(old + bloque, encoding="utf-8")
+    avisar(titulo, f"{detalle}\nRevisar por_aprobar.md", log_path=path.parent / "avisos.log" if path != POR_APROBAR else None)
 
 
 class Bitacora:

@@ -18,8 +18,9 @@ python -m codexmax status
 python -m codexmax uso
 python -m codexmax run --repo "D:\ruta\al\repo" --goal "lo que quieres lograr"
 python -m codexmax run --repo ... --goal-file objetivo.md --apply
+python -m codexmax run --repo ... --salida "D:\proyecto\_codexmax" --goal "objetivo"
 ```
-`status` lista las corridas guardadas en `runs/` (hechas/total y estado de cada tarea), en solo lectura.
+`status` lista corridas nuevas y antiguas con sus rutas (hechas/total y estado de cada tarea), en solo lectura.
 Avisos Windows y registro en `avisos.log`: `run --sin-avisos` o `CODEXMAX_SIN_AVISOS=1` desactiva solo los toasts.
 `uso` muestra llamadas y tokens locales por agente y modelo (5h, 7d y total); no incluye uso fuera de Codex Max ni conoce los limites del plan.
 Cada llamada registra metricas en `uso.jsonl` y el reporte resume Consumo; `costo_usd` es equivalente API informativo, no un cobro de la suscripcion.
@@ -32,8 +33,8 @@ Puedes indicar roles `plan`, `review`, `code`, `text` y `research` para `codex`,
 - El repo debe ser git y estar limpio. Todo ocurre en ramas `cm/<run>/...` y worktrees en `runs/<run>/wt/`.
 - FALTA del revisor -> reintento con la critica; 3.er intento cambia de agente; 4.o fallido -> pide al jefe.
 - Nunca hace `git push`. Lo hecho queda en `cm/<run>/_integracion`; `--apply` avanza tu rama (solo fast-forward).
-- Lo unico que requiere al jefe se escribe en `por_aprobar.md`.
-- Resultado: `runs/<run>/REPORTE.md`, `bitacora.md` y `llamadas/` (prompt y respuesta de cada agente).
+- Lo unico que requiere al jefe se escribe en el `por_aprobar.md` de la corrida.
+- Resultado: `<repo>/_codexmax/runs/<run>/REPORTE.md`, `bitacora.md` y `llamadas/` (prompt y respuesta de cada agente); el taller solo registra `data/registro.jsonl` y `data/uso.jsonl`.
 
 ## Filtro de secretos (`codexmax/guard.py`)
 1. Las copias de trabajo solo tienen lo que git rastrea: un `.env` ignorado por git nunca llega a un agente.

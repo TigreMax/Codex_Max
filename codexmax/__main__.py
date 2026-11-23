@@ -2,9 +2,30 @@ import argparse
 import os
 import sys
 import time
+from pathlib import Path
 
 from .adapters import ADAPTERS
 from .core import ROOT
+
+
+def excluir_codexmax(repo, run_dir):
+    """Excluye los artefactos locales sin tocar archivos versionados."""
+    import subprocess
+
+    repo = Path(repo).resolve()
+    codexmax = repo / "_codexmax"
+    if not (run_dir == codexmax or codexmax in run_dir.parents):
+        return
+    result = subprocess.run(["git", "rev-parse", "--git-path", "info/exclude"],
+                            cwd=repo, capture_output=True, text=True, check=True)
+    exclude = Path(result.stdout.strip())
+    if not exclude.is_absolute():
+        exclude = repo / exclude
+    exclude.parent.mkdir(parents=True, exist_ok=True)
+    old = exclude.read_text(encoding="utf-8") if exclude.exists() else ""
+    if "_codexmax/" not in old.splitlines():
+        with exclude.open("a", encoding="utf-8") as stream:
+            stream.write(("\n" if old and not old.endswith("\n") else "") + "_codexmax/\n")
 
 
 def doctor():
@@ -32,6 +53,7 @@ def main():
     close.add_argument("id")
     r = sub.add_parser("run")
     r.add_argument("--repo", required=True)
+    r.add_argument("--salida", help="carpeta donde se guardara runs/<id>")
     g = r.add_mutually_exclusive_group(required=True)
     g.add_argument("--goal")
     g.add_argument("--goal-file")
@@ -59,12 +81,24 @@ def main():
     from .orchestrator import Orchestrator
     goal = a.goal or open(a.goal_file, encoding="utf-8").read()
     run_id = time.strftime("%Y%m%d-%H%M%S")
+    repo = Path(a.repo).resolve()
+    salida = Path(a.salida).resolve() if a.salida else repo / "_codexmax"
+    base_id = run_id
+    n = 1
+    while (salida / "runs" / run_id).exists():
+        run_id = f"{base_id}-{n}"
+        n += 1
+    run_dir = (salida / "runs" / run_id).resolve()
+    excluir_codexmax(repo, run_dir)
+    run_dir.mkdir(parents=True, exist_ok=True)
+    from .registro import registrar
+    registrar(run_id, run_dir, repo, ROOT / "data")
     anterior = os.environ.get("CODEXMAX_SIN_AVISOS")
     try:
         if a.sin_avisos:
             os.environ["CODEXMAX_SIN_AVISOS"] = "1"
-        Orchestrator(a.repo, goal, ROOT / "runs" / run_id, run_id, a.apply, a.workers, a.aceptar,
-                     espera_max_horas=a.espera_max_horas).run()
+        Orchestrator(repo, goal, run_dir, run_id, a.apply, a.workers, a.aceptar,
+                     espera_max_horas=a.espera_max_horas, data_dir=ROOT / "data").run()
     finally:
         if a.sin_avisos:
             if anterior is None:

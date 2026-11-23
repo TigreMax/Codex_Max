@@ -74,6 +74,7 @@ class RegistroYConsulta(unittest.TestCase):
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name)
+        self.enterContext(patch("codexmax.orchestrator.ROOT", self.root))
 
     def test_call_y_reporte(self):
         with patch("codexmax.orchestrator.Workspace"), patch("codexmax.orchestrator.Store"):
@@ -90,6 +91,7 @@ class RegistroYConsulta(unittest.TestCase):
             o.call("codex", "PROMPT_PRIVADO", self.root, True, 10)
             o.call("codex", "PROMPT_PRIVADO", self.root, False, 10)
         raw = (o.run_dir / "uso.jsonl").read_text(encoding="utf-8")
+        self.assertEqual((self.root / "data" / "uso.jsonl").read_text(encoding="utf-8"), raw)
         self.assertNotIn("PRIVADO", raw)
         self.assertNotIn("PRIVADA", raw)
         self.assertNotIn("NO_GUARDAR", raw)

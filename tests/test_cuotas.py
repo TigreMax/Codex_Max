@@ -35,9 +35,12 @@ class Cuotas(unittest.TestCase):
 
     def test_cli_wait_option(self):
         from codexmax.__main__ import main
-        with patch("sys.argv", ["codexmax", "run", "--repo", ".", "--goal", "prueba",
-                                "--espera-max-horas", "2.5"]),                 patch("codexmax.orchestrator.Orchestrator") as orchestrator:
-            main()
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("sys.argv", ["codexmax", "run", "--repo", ".", "--goal", "prueba",
+                                    "--espera-max-horas", "2.5", "--salida", tmp]), \
+                    patch("codexmax.__main__.ROOT", Path(tmp)), \
+                    patch("codexmax.orchestrator.Orchestrator") as orchestrator:
+                main()
         self.assertEqual(orchestrator.call_args.kwargs["espera_max_horas"], 2.5)
         orchestrator.return_value.run.assert_called_once_with()
 

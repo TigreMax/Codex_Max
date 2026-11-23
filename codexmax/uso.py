@@ -67,7 +67,9 @@ def main_uso(runs_dir=None, ahora=None):
         from .core import ROOT
         runs_dir = ROOT / "runs"
     ahora = time.time() if ahora is None else ahora
-    rows = [row for path in sorted(Path(runs_dir).glob("*/uso.jsonl")) for row in leer_uso(path)]
+    runs_dir = Path(runs_dir)
+    rows = list(leer_uso(runs_dir.parent / "data" / "uso.jsonl"))
+    rows.extend(row for path in sorted(runs_dir.glob("*/uso.jsonl")) for row in leer_uso(path))
     ventanas = [resumen(row for row in rows if ahora - hours * 3600 <= row["ts"] <= ahora)
                 for hours in (5, 7 * 24)]
     total = resumen(rows)
