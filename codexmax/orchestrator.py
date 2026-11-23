@@ -13,6 +13,7 @@ from .store import Store
 from .lifecycle import timestamp, write_meta, read_meta
 from . import guard
 from .workspace import Workspace
+from .uso import limpiar_uso, reporte_consumo
 
 MAX_INTENTOS = 4          # 2 con el mismo agente, 3.o con otro, 4.o ultimo
 REGLAS = (
@@ -62,6 +63,7 @@ class Orchestrator:
         self.espera_max_horas = espera_max_horas
         self.router = Router(self.health, self.log, espera_max_horas * 3600)
         self.pause_lock = threading.Lock()
+        self.uso_lock = threading.Lock()
         self.pausada_hasta = None
         self.ws = Workspace(repo, run_dir, run_id)
         self.workers = workers
@@ -71,6 +73,11 @@ class Orchestrator:
         a = ADAPTERS[agent]
         with self.health.sem[agent]:
             r = a.run(prompt, cwd, write=write, timeout=timeout)
+        entry = dict(ts=time.time(), agente=agent, escribe=bool(write), kind=r.kind, segundos=r.seconds)
+        entry.update(limpiar_uso(getattr(r, "uso", {})))
+        with self.uso_lock:
+            with (self.run_dir / "uso.jsonl").open("a", encoding="utf-8") as stream:
+                stream.write(json.dumps(entry, ensure_ascii=False) + "\n")
         self.log(f"[{agent}] {'escribe' if write else 'lee'} -> {r.kind} en {r.seconds:.0f}s"
                  + ("" if r.ok else f" | {r.error[-300:]!r}"))
         calls = self.run_dir / "llamadas"
@@ -338,5 +345,6 @@ class Orchestrator:
         elif hechas:
             lines.append(f"\nPara aplicar lo hecho a tu rama actual:\n"
                          f"`git -C \"{self.repo}\" merge --ff-only {self.ws.integ_branch}`")
+        lines.extend(reporte_consumo(self.run_dir / "uso.jsonl"))
         (self.run_dir / "REPORTE.md").write_text("\n".join(lines), encoding="utf-8")
         self.log("\n".join(lines))

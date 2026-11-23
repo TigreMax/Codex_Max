@@ -15,10 +15,13 @@ Kimi quedo fuera. Quien hace un trabajo nunca lo aprueba: el revisor siempre es 
 ```
 python -m codexmax doctor
 python -m codexmax status
+python -m codexmax uso
 python -m codexmax run --repo "D:\ruta\al\repo" --goal "lo que quieres lograr"
 python -m codexmax run --repo ... --goal-file objetivo.md --apply
 ```
 `status` lista las corridas guardadas en `runs/` (hechas/total y estado de cada tarea), en solo lectura.
+`uso` muestra llamadas y tokens locales por agente (5h, 7d y total); no incluye uso fuera de Codex Max ni conoce los limites del plan.
+Cada llamada registra metricas en `uso.jsonl` y el reporte resume Consumo; `costo_usd` es equivalente API informativo, no un cobro de la suscripcion.
 `run` guarda configuracion y PID en `meta.json`; `status` indica INTERRUMPIDA cuando quedan tareas sin proceso vivo.
 `python -m codexmax resume <id> [--reintentar]` continua sin planificar; la opcion incluye bloqueadas y omitidas.
 `python -m codexmax close <id>` cierra pendientes y genera REPORTE.md sin borrar ramas ni carpetas; admite corridas antiguas. Ambos comandos rechazan procesos vivos.

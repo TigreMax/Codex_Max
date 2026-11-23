@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import tempfile
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 LIMIT_RE = re.compile(
@@ -28,6 +28,46 @@ class Result:
     error: str = ""
     kind: str = "ok"      # ok | limit | auth | timeout | error
     seconds: float = 0.0
+    uso: dict = field(default_factory=dict)
+
+
+def _json_output(out):
+    try:
+        data = json.loads(out[out.index("{"):])
+        return data if isinstance(data, dict) else {}
+    except (ValueError, TypeError, RecursionError):
+        return {}
+
+
+def _uso_json(data, agent):
+    from .uso import numero
+    usage = data.get("usage")
+    uso = {}
+    if isinstance(usage, dict):
+        for source, target in (("input_tokens", "tokens_in"),
+                               ("output_tokens", "tokens_out")):
+            if numero(usage.get(source), entero=True):
+                uso[target] = usage[source]
+        if agent == "agy" and numero(usage.get("total_tokens"), entero=True):
+            uso["tokens_total"] = usage["total_tokens"]
+        else:
+            fields = ["input_tokens", "output_tokens"]
+            fields += (["cache_creation_input_tokens", "cache_read_input_tokens"]
+                       if agent == "claude" else ["thinking_tokens", "cache_read_tokens"])
+            values = [usage[k] for k in fields if numero(usage.get(k), entero=True)]
+            if values:
+                uso["tokens_total"] = sum(values)
+    if agent == "claude" and numero(data.get("total_cost_usd")):
+        uso["costo_usd"] = data["total_cost_usd"]
+    return uso
+
+
+def _uso_codex(out):
+    matches = re.findall(r"(?im)^\s*tokens used\s*\r?\n[ \t]*(\d{1,3}(?:,\d{3})+|\d+)[ \t]*$", out)
+    try:
+        return {"tokens_total": int(matches[-1].replace(",", ""))} if matches else {}
+    except ValueError:
+        return {}
 
 
 def _classify(blob: str) -> str:
@@ -67,13 +107,14 @@ class Adapter:
     def run(self, prompt, cwd, write=False, timeout=1800) -> Result:
         raise NotImplementedError
 
-    def _finish(self, rc, out, err, secs, timedout, text) -> Result:
+    def _finish(self, rc, out, err, secs, timedout, text, uso=None) -> Result:
+        uso = uso or {}
         if timedout:
-            return Result(False, text, "timeout", "timeout", secs)
+            return Result(False, text, "timeout", "timeout", secs, uso)
         if rc != 0 or not text.strip():
             blob = (err + "\n" + out)[-3000:]
-            return Result(False, text, blob.strip()[-1500:], _classify(blob), secs)
-        return Result(True, text.strip(), "", "ok", secs)
+            return Result(False, text, blob.strip()[-1500:], _classify(blob), secs, uso)
+        return Result(True, text.strip(), "", "ok", secs, uso)
 
 
 class Codex(Adapter):
@@ -89,14 +130,14 @@ class Codex(Adapter):
                "-o", outfile, "-"]
         rc, out, err, secs, to = _exec(cmd, cwd, prompt, timeout)
         try:
-            text = open(outfile, encoding="utf-8", errors="replace").read()
+            text = Path(outfile).read_text(encoding="utf-8", errors="replace")
         except OSError:
             text = ""
         try:
             os.unlink(outfile)
         except OSError:
             pass
-        return self._finish(rc, out, err, secs, to, text)
+        return self._finish(rc, out, err, secs, to, text, _uso_codex(out))
 
 
 # Herramientas MCP de Google que se permiten SIN pantalla: solo lectura.
@@ -140,19 +181,17 @@ class Agy(Adapter):
         if rules:   # --settings vale solo para esta ejecucion: no se guarda nada
             cmd += ["--settings", json.dumps({"permissions": {"allow": rules}})]
         rc, out, err, secs, to = _exec(cmd, cwd, None, timeout + 60)
-        text, status = "", ""
-        i = out.find("{")
-        if i >= 0:
-            try:
-                data = json.loads(out[i:])
-                text = data.get("response", "") or ""
-                status = data.get("status", "")
-            except ValueError:
-                text = out
+        data = _json_output(out)
+        text = data.get("response", "") or ""
+        text = text if isinstance(text, str) else ""
+        if not data and "{" in out:
+            text = out
+        status = data.get("status", "")
+        uso = _uso_json(data, "agy")
         if status and status != "SUCCESS":
             return Result(False, text, f"status={status} {err[-500:]}",
-                          _classify(err + out), secs)
-        return self._finish(rc, out, err, secs, to, text)
+                          _classify(err + out), secs, uso)
+        return self._finish(rc, out, err, secs, to, text, uso)
 
 
 class Claude(Adapter):
@@ -174,18 +213,16 @@ class Claude(Adapter):
         else:
             cmd += ["--disallowedTools", "Edit Write NotebookEdit", "--allowedTools", self.SAFE]
         rc, out, err, secs, to = _exec(cmd, cwd, self.PREAMBLE + prompt, timeout)
-        text, bad = "", False
-        i = out.find("{")
-        if i >= 0:
-            try:
-                data = json.loads(out[i:])
-                text = data.get("result", "") or ""
-                bad = bool(data.get("is_error"))
-            except ValueError:
-                text = out
+        data = _json_output(out)
+        text = data.get("result", "") or ""
+        text = text if isinstance(text, str) else ""
+        if not data and "{" in out:
+            text = out
+        bad = bool(data.get("is_error"))
+        uso = _uso_json(data, "claude")
         if bad:
-            return Result(False, text, text[-500:] or err[-500:], _classify(text + err), secs)
-        return self._finish(rc, out, err, secs, to, text)
+            return Result(False, text, text[-500:] or err[-500:], _classify(text + err), secs, uso)
+        return self._finish(rc, out, err, secs, to, text, uso)
 
 
 ADAPTERS = {a.name: a for a in (Codex(), Agy(), Claude())}
