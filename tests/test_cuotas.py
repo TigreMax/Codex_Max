@@ -105,7 +105,7 @@ class CorridaCuota(unittest.TestCase):
                 return SimpleNamespace(ok=kind == "ok", kind=kind, text=text,
                                        error=error, seconds=0)
 
-            def author(prompt, cwd, write, timeout):
+            def author(prompt, cwd, write, timeout, modelo=None, esfuerzo=None):
                 self.assertTrue(write)
                 writes.append(Path(cwd).name)
                 if limited[0]:
@@ -113,7 +113,7 @@ class CorridaCuota(unittest.TestCase):
                 (Path(cwd) / (Path(cwd).name + ".txt")).write_text("hecho", encoding="utf-8")
                 return result(text="terminado")
 
-            def reviewer(prompt, cwd, write, timeout):
+            def reviewer(prompt, cwd, write, timeout, modelo=None, esfuerzo=None):
                 self.assertFalse(write)
                 return result(text="VEREDICTO: APROBADO")
 

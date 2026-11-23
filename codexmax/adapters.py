@@ -19,6 +19,11 @@ LIMIT_RE = re.compile(
 AUTH_RE = re.compile(
     r"no credential|not logged in|log ?in required|unauthori[sz]ed|\b401\b|"
     r"please (log|sign) ?in|token (expired|invalid)|expired session", re.I)
+SIMPLE_ARG = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+def _simple_arg(value):
+    return isinstance(value, str) and bool(SIMPLE_ARG.fullmatch(value))
 
 
 @dataclass
@@ -104,7 +109,7 @@ class Adapter:
     def installed(self) -> bool:
         return self.path is not None
 
-    def run(self, prompt, cwd, write=False, timeout=1800) -> Result:
+    def run(self, prompt, cwd, write=False, timeout=1800, modelo=None, esfuerzo=None) -> Result:
         raise NotImplementedError
 
     def _finish(self, rc, out, err, secs, timedout, text, uso=None) -> Result:
@@ -121,13 +126,17 @@ class Codex(Adapter):
     name = "codex"
     binary = "codex"
 
-    def run(self, prompt, cwd, write=False, timeout=1800):
+    def run(self, prompt, cwd, write=False, timeout=1800, modelo=None, esfuerzo=None):
         fd, outfile = tempfile.mkstemp(suffix=".txt", prefix="cm_codex_")
         os.close(fd)
         sandbox = "workspace-write" if write else "read-only"
         # el prompt va por stdin ("-"): evita problemas de comillas en Windows
         cmd = [self.path, "exec", "-s", sandbox, "--ephemeral", "-C", str(cwd),
                "-o", outfile, "-"]
+        if _simple_arg(modelo):
+            cmd[-1:-1] = ["-m", modelo]
+        if _simple_arg(esfuerzo):
+            cmd[-1:-1] = ["-c", f'model_reasoning_effort="{esfuerzo}"']
         rc, out, err, secs, to = _exec(cmd, cwd, prompt, timeout)
         try:
             text = Path(outfile).read_text(encoding="utf-8", errors="replace")
@@ -169,7 +178,7 @@ class Agy(Adapter):
     name = "agy"
     binary = "agy"
 
-    def run(self, prompt, cwd, write=False, timeout=1800):
+    def run(self, prompt, cwd, write=False, timeout=1800, modelo=None, esfuerzo=None):
         # Hallazgos: "plan" pide aprobacion; "accept-edits" DENIEGA comandos (respuesta vacia);
         # "auto" no esta disponible en esta cuenta. Lo que funciona: --sandbox (modo por defecto).
         # La lectura se pide por prompt y el orquestador resetea la carpeta despues.
@@ -177,6 +186,8 @@ class Agy(Adapter):
             prompt = "SOLO LECTURA: no crees ni modifiques archivos; responde en texto.\n" + prompt
         cmd = [self.path, "-p", prompt, "--output-format", "json", "--sandbox",
                "--print-timeout", f"{int(timeout)}s"]
+        if _simple_arg(modelo) and _simple_arg(esfuerzo):
+            cmd += ["-m", f"{modelo}-{esfuerzo}"]
         rules = mcp_allow_rules()
         if rules:   # --settings vale solo para esta ejecucion: no se guarda nada
             cmd += ["--settings", json.dumps({"permissions": {"allow": rules}})]
@@ -205,13 +216,17 @@ class Claude(Adapter):
                "Read(~/.claude/**) Read(~/.codex/**) Read(~/.gemini/**) Read(~/.kimi-code/**)")
     SAFE = "Read Grep Glob Bash(python *) Bash(git diff*) Bash(git log*) Bash(git status*) Bash(git show*)"
 
-    def run(self, prompt, cwd, write=False, timeout=1800):
+    def run(self, prompt, cwd, write=False, timeout=1800, modelo=None, esfuerzo=None):
         cmd = [self.path, "-p", "--output-format", "json", "--no-session-persistence",
                "--disallowedTools", "Bash(git push*) " + self.NO_LEER]
         if write:
             cmd += ["--permission-mode", "acceptEdits", "--allowedTools", self.SAFE + " Edit Write"]
         else:
             cmd += ["--disallowedTools", "Edit Write NotebookEdit", "--allowedTools", self.SAFE]
+        if _simple_arg(modelo):
+            cmd += ["--model", modelo]
+        if _simple_arg(esfuerzo):
+            cmd += ["--effort", esfuerzo]
         rc, out, err, secs, to = _exec(cmd, cwd, self.PREAMBLE + prompt, timeout)
         data = _json_output(out)
         text = data.get("result", "") or ""
