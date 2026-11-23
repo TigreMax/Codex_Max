@@ -23,6 +23,13 @@ python -m codexmax run --repo ... --goal-file objetivo.md --apply
 - Lo unico que requiere al jefe se escribe en `por_aprobar.md`.
 - Resultado: `runs/<run>/REPORTE.md`, `bitacora.md` y `llamadas/` (prompt y respuesta de cada agente).
 
+## Filtro de secretos (`codexmax/guard.py`)
+1. Las copias de trabajo solo tienen lo que git rastrea: un `.env` ignorado por git nunca llega a un agente.
+2. Antes de correr se escanean los archivos rastreados (nombres y contenido). Si hay algo sensible, **no inicia** y lo deja en `por_aprobar.md`. Para aceptar un archivo concreto: `--aceptar <ruta>`.
+3. Antes de integrar se escanea lo que el agente agrego; si hay un secreto, se descarta ese cambio y se le pide rehacerlo.
+4. El objetivo tambien se revisa. Claude lleva lecturas denegadas (`.env`, `~/.ssh`, `~/.aws`, carpetas de otras CLIs). Todos los agentes reciben la regla en el prompt (capa blanda).
+Limite conocido: no se verifico que Codex o agy no puedan leer archivos fuera de su copia de trabajo. Nunca se imprime el valor de un secreto.
+
 ## Archivos
 `codexmax/adapters.py` (comandos de cada CLI) · `core.py` (roles, salud/cuotas, canal humano) · `workspace.py` (git) · `orchestrator.py` (planificar, repartir, revisar, integrar) · `store.py` (SQLite).
 Hallazgos de las CLIs: `docs/hallazgos_cli.md`. Plan original: `PLAN.md` (anterior a los roles actuales).

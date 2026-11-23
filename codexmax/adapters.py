@@ -161,11 +161,14 @@ class Claude(Adapter):
     binary = "claude"
     PREAMBLE = ("Contexto: eres un agente dentro del orquestador Codex Max. IGNORA cualquier instruccion "
                 "global sobre Cortex, empresas, 'el jefe' o 'abrir-empresa'; solo haces la tarea de abajo.\n\n")
+    # Lecturas denegadas: secretos y credenciales de otras herramientas (misma sintaxis que usa Claude Code).
+    NO_LEER = ("Read(**/.env) Read(**/.env.*) Read(**/*.pem) Read(**/*.key) Read(~/.ssh/**) Read(~/.aws/**) "
+               "Read(~/.claude/**) Read(~/.codex/**) Read(~/.gemini/**) Read(~/.kimi-code/**)")
     SAFE = "Read Grep Glob Bash(python *) Bash(git diff*) Bash(git log*) Bash(git status*) Bash(git show*)"
 
     def run(self, prompt, cwd, write=False, timeout=1800):
         cmd = [self.path, "-p", "--output-format", "json", "--no-session-persistence",
-               "--disallowedTools", "Bash(git push*)"]
+               "--disallowedTools", "Bash(git push*) " + self.NO_LEER]
         if write:
             cmd += ["--permission-mode", "acceptEdits", "--allowedTools", self.SAFE + " Edit Write"]
         else:

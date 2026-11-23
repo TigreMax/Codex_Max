@@ -27,13 +27,15 @@ def main():
     g.add_argument("--goal-file")
     r.add_argument("--apply", action="store_true", help="avanza la rama actual si todo salio bien (ff-only)")
     r.add_argument("--workers", type=int, default=3)
+    r.add_argument("--aceptar", action="append", default=[], metavar="RUTA",
+                   help="acepta enviar este archivo sensible que git rastrea (repetible)")
     a = ap.parse_args()
     if a.cmd == "doctor":
         return doctor()
     from .orchestrator import Orchestrator
     goal = a.goal or open(a.goal_file, encoding="utf-8").read()
     run_id = time.strftime("%Y%m%d-%H%M%S")
-    Orchestrator(a.repo, goal, ROOT / "runs" / run_id, run_id, a.apply, a.workers).run()
+    Orchestrator(a.repo, goal, ROOT / "runs" / run_id, run_id, a.apply, a.workers, a.aceptar).run()
 
 
 if __name__ == "__main__":

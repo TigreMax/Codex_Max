@@ -45,6 +45,11 @@ class Workspace:
         git(path, "reset", "-q", "--hard", "HEAD", check=False)
         git(path, "clean", "-fdq", check=False)
 
+    def restart(self, path):
+        """Descarta todo lo hecho en la rama de la tarea y vuelve a la rama de integracion."""
+        git(path, "reset", "-q", "--hard", self.integ_branch)
+        git(path, "clean", "-fdq", check=False)
+
     def base_of(self, path):
         return git(path, "merge-base", "HEAD", self.integ_branch).stdout.strip()
 

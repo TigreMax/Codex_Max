@@ -8,13 +8,17 @@ from pathlib import Path
 from .adapters import ADAPTERS, GOOGLE_READ_ONLY, configured_mcp
 from .core import Health, Router, Bitacora, pedir_humano
 from .store import Store
+from . import guard
 from .workspace import Workspace
 
 MAX_INTENTOS = 4          # 2 con el mismo agente, 3.o con otro, 4.o ultimo
 COOLDOWN_LIMITE = 15 * 60
 REGLAS = (
     "REGLAS: trabaja SOLO dentro de esta carpeta. No hagas git push ni publiques nada. "
-    "No escribas claves ni contrasenas en archivos. No borres fuera de esta carpeta. "
+    "No escribas claves ni contrasenas en archivos (usa variables de entorno). "
+    "No leas ni abras archivos .env, claves (.pem, .key), ~/.ssh, ~/.aws ni las carpetas de otras "
+    "herramientas (~/.codex, ~/.gemini, ~/.claude); si la tarea lo necesita, detente y dilo. "
+    "No borres fuera de esta carpeta. "
     "Si hay pruebas, corrélas. Termina con un resumen corto de lo que hiciste."
 )
 
@@ -45,8 +49,9 @@ def _acyclic(tasks):
 
 
 class Orchestrator:
-    def __init__(self, repo, goal, run_dir, run_id, apply=False, workers=3):
+    def __init__(self, repo, goal, run_dir, run_id, apply=False, workers=3, aceptar=()):
         self.repo, self.goal, self.run_id, self.apply = Path(repo), goal, run_id, apply
+        self.aceptar = set(a.replace("\\", "/") for a in aceptar)
         self.run_dir = Path(run_dir)
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.log = Bitacora(self.run_dir / "bitacora.md")
@@ -184,6 +189,14 @@ class Orchestrator:
             if not changed:
                 critique = "No se produjo ningun cambio en los archivos. Deja el resultado en archivos de esta carpeta."
                 continue
+            fugas = guard.escanear_diff(self.ws.diff(tree, limit=10**7))
+            if fugas:
+                self.ws.restart(tree)       # borra el commit con el secreto: no debe llegar a la integracion
+                detalle = "; ".join(f"{a}: {m}" for a, m in fugas[:5])
+                critique = (f"FILTRO DE SECRETOS: tu cambio incluia lo que parece un secreto ({detalle}). Se descarto. "
+                            "Rehaz la tarea sin escribir claves ni contrasenas en archivos: usa variables de entorno.")
+                self.log(f"[{tid}] FILTRO: secreto detectado en el cambio de {ag} ({detalle}); cambio descartado")
+                continue
             ok, rev, why = self.review(t, tree, ag)
             if ok is None:
                 critique = why
@@ -211,6 +224,19 @@ class Orchestrator:
     def run(self):
         if self.ws.is_dirty():
             raise SystemExit("El repositorio tiene cambios sin guardar. Haz commit (o usa otra copia) antes de correr.")
+        # Filtro de secretos: el objetivo y los archivos que git rastrea van a 3 proveedores externos.
+        tipos = guard.buscar_en_texto(self.goal)
+        if tipos:
+            raise SystemExit(f"FILTRO: el objetivo parece contener un secreto ({', '.join(tipos)}). No se envia a ningun agente.")
+        hallazgos = guard.escanear_repo(self.repo, self.aceptar)
+        if hallazgos:
+            lista = "\n".join(f"  - {r}: {m}" for r, m in hallazgos[:20])
+            pedir_humano("Archivos sensibles en el repositorio",
+                         f"Run {self.run_id} NO inicio. Git rastrea archivos que parecen secretos y se enviarian a "
+                         f"Codex, Claude y agy:\n{lista}\nSaquelos de git (git rm --cached) o, si estan bien, "
+                         f"corra con --aceptar <ruta> para cada uno.", None, self.run_id)
+            raise SystemExit("FILTRO: archivos sensibles en el repositorio:\n" + lista +
+                             "\nQuitelos de git o use --aceptar <ruta> (detalle en por_aprobar.md).")
         self.ws.prepare()
         self.log(f"=== run {self.run_id} | repo {self.repo} | rama base {self.ws.current_branch()}")
         tasks = self.plan()
