@@ -77,11 +77,13 @@ def recover(run_id, runs_dir, reintentar=False, close=False):
     orchestrator = Orchestrator(
         config.get("repo", run_dir), config.get("goal", "Corrida antigua sin meta.json"),
         run_dir, run_id, apply=config.get("apply", False) if not close else False,
-        workers=config.get("workers", 3), aceptar=config.get("aceptar", []))
+        workers=config.get("workers", 3), aceptar=config.get("aceptar", []),
+        espera_max_horas=config.get("espera_max_horas", 6))
     try:
         if not close:
             meta["pid"] = os.getpid()
             meta.pop("finished", None)
+            meta.pop("pausada_hasta", None)
             write_meta(run_dir, meta)
         states = ("en_curso", "pendiente") if close else ("en_curso",)
         if reintentar and not close:
@@ -97,7 +99,6 @@ def recover(run_id, runs_dir, reintentar=False, close=False):
         else:
             orchestrator.execute()
         if meta is not None:
-            meta["finished"] = timestamp()
-            write_meta(run_dir, meta)
+            orchestrator.save_outcome()
     finally:
         orchestrator.store.db.close()
