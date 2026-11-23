@@ -11,11 +11,11 @@ SIMPLE = re.compile(r"^[A-Za-z0-9._-]+$")
 
 DEFAULTS = {
     "codex": {
-        "code": ("gpt-6.2-sol", "medium"),
-        "text": ("gpt-6.2-sol", "low"),
-        "research": ("gpt-6.2-sol", "low"),
-        "plan": ("gpt-6.2-sol", "medium"),
-        "review": ("gpt-6.2-sol", "medium"),
+        "code": ("gpt-6-sol", "medium"),
+        "text": ("gpt-6-sol", "low"),
+        "research": ("gpt-6-sol", "low"),
+        "plan": ("gpt-6-sol", "medium"),
+        "review": ("gpt-6-sol", "medium"),
     },
     "claude": {
         "plan": ("sonnet", "medium"),

@@ -22,10 +22,10 @@ class Eleccion(unittest.TestCase):
             config = Path(tmp) / "modelos.json"
             config.write_text(json.dumps({"codex": {"code": ["gpt-6.2-astra", "high"]}}), encoding="utf-8")
             self.assertEqual(modelos.elegir("codex", "code"), ("gpt-6.2-astra", "high"))
-            self.assertEqual(modelos.elegir("codex", "text"), ("gpt-6.2-sol", "low"))
+            self.assertEqual(modelos.elegir("codex", "text"), ("gpt-6-sol", "low"))
             for data in ("{roto", "[]", '{"codex":{"code":["bad model","high"]}}'):
                 config.write_text(data, encoding="utf-8")
-                self.assertEqual(modelos.elegir("codex", "code"), ("gpt-6.2-sol", "medium"))
+                self.assertEqual(modelos.elegir("codex", "code"), ("gpt-6-sol", "medium"))
 
 
 class Comandos(unittest.TestCase):
@@ -52,7 +52,7 @@ class Comandos(unittest.TestCase):
     def test_comandos_sin_opciones_y_con_modelo(self):
         cases = (
             (Codex(), ["cli", "exec", "-s", "read-only", "--ephemeral", "-C", ".",
-                       "-o", "<salida>", "-"], ["-m", "gpt-6.2-sol", "-c", 'model_reasoning_effort="medium"']),
+                       "-o", "<salida>", "-"], ["-m", "gpt-6-sol", "-c", 'model_reasoning_effort="medium"']),
             (Agy(), ["cli", "-p", "SOLO LECTURA: no crees ni modifiques archivos; responde en texto.\nprompt",
                      "--output-format", "json", "--sandbox", "--print-timeout", "1800s"],
              ["-m", "gemini-4-hydrogen-medium"]),
@@ -64,7 +64,7 @@ class Comandos(unittest.TestCase):
         for adapter, base, added in cases:
             with self.subTest(agent=adapter.name):
                 self.assertEqual(self.command(adapter), base)
-                model = {"codex": "gpt-6.2-sol", "agy": "gemini-4-hydrogen", "claude": "sonnet"}[adapter.name]
+                model = {"codex": "gpt-6-sol", "agy": "gemini-4-hydrogen", "claude": "sonnet"}[adapter.name]
                 expected = base[:-1] + added + base[-1:] if isinstance(adapter, Codex) else base + added
                 self.assertEqual(self.command(adapter, modelo=model, esfuerzo="medium"), expected)
 
@@ -89,13 +89,13 @@ class Reintento(unittest.TestCase):
                 result = o.call("codex", "prompt", tmp, True, 10, "text")
             self.assertTrue(result.ok)
             self.assertEqual(agent.run.call_count, 2)
-            self.assertEqual(agent.run.call_args_list[0].kwargs["modelo"], "gpt-6.2-sol")
+            self.assertEqual(agent.run.call_args_list[0].kwargs["modelo"], "gpt-6-sol")
             self.assertEqual(agent.run.call_args_list[0].kwargs["esfuerzo"], "low")
             self.assertNotIn("modelo", agent.run.call_args_list[1].kwargs)
             self.assertNotIn("esfuerzo", agent.run.call_args_list[1].kwargs)
             rows = [json.loads(line) for line in (o.run_dir / "uso.jsonl").read_text(encoding="utf-8").splitlines()]
             self.assertEqual([(r["modelo"], r["esfuerzo"]) for r in rows],
-                             [("gpt-6.2-sol", "low"), (None, None)])
+                             [("gpt-6-sol", "low"), (None, None)])
             self.assertIn("reintento con modelo por defecto", " ".join(c.args[0] for c in o.log.call_args_list))
 
 
