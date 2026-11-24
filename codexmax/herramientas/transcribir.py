@@ -24,6 +24,30 @@ def _agregar_dlls_nvidia():
                 os.environ["PATH"] = str(sub) + os.pathsep + os.environ.get("PATH", "")
 
 
+def _decodificar_audio(ruta, rate=16000):
+    """Audio mono a 16 kHz (float32) con PyAV. faster-whisper trae su propio decodificador, pero con
+    PyAV 19 falla (`metadata_errors`); este funciona con cualquier version y acepta audio o video."""
+    import av
+    import numpy as np
+
+    contenedor = av.open(str(ruta), mode="r")
+    try:
+        if not contenedor.streams.audio:
+            raise ValueError("el archivo no tiene pista de audio")
+        resampler = av.AudioResampler(format="s16", layout="mono", rate=rate)
+        partes = []
+        for frame in contenedor.decode(contenedor.streams.audio[0]):
+            for nuevo in resampler.resample(frame):
+                partes.append(nuevo.to_ndarray().reshape(-1))
+        for nuevo in resampler.resample(None):
+            partes.append(nuevo.to_ndarray().reshape(-1))
+    finally:
+        contenedor.close()
+    if not partes:
+        raise ValueError("no se pudo leer audio")
+    return np.concatenate(partes).astype(np.float32) / 32768.0
+
+
 def _hora(segundos):
     s = int(segundos)
     return f"{s // 3600:02d}:{s % 3600 // 60:02d}:{s % 60:02d}"
@@ -53,7 +77,10 @@ def main(argv=None):
     _agregar_dlls_nvidia()
     inicio = time.time()
     modelo, con = _cargar(a.modelo, a.cpu)
-    segmentos, info = modelo.transcribe(str(origen), language=a.idioma, vad_filter=True)
+    print("Leyendo el audio...", flush=True)
+    audio = _decodificar_audio(origen)
+    print(f"Audio listo: {len(audio) / 16000 / 60:.1f} minutos. Transcribiendo...", flush=True)
+    segmentos, info = modelo.transcribe(audio, language=a.idioma, vad_filter=True)
     salida = origen.with_suffix(".txt")
     lineas = []
     with salida.open("w", encoding="utf-8") as f:
