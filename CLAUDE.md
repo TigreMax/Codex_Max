@@ -8,7 +8,7 @@ Habla con el jefe en español sencillo: pasos concretos, di la verdad, "no lo s�
 | Qué | Dónde |
 |---|---|
 | Programa, habilidades, reglas de agentes | `D:\Codex_Max` (este repositorio) |
-| Memoria de una empresa: `_arranque.md`, `historial\`, `memoria\`, `por_aprobar.md` | `D:\Empresas\<Empresa>\` |
+| Memoria de una empresa: `_arranque.md` y `por_aprobar.md` (en la raíz); `historial\` y `memoria\` (dentro de `archivos_codexmax\`) | `D:\Empresas\<Empresa>\` |
 | Código y trabajo de un proyecto | `D:\Empresas\<Empresa>\proyectos\<Proyecto>\` |
 | Bibliotecas grandes de habilidades | `D:\Cortex_externas\` |
 

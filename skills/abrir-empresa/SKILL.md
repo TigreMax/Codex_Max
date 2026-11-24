@@ -14,11 +14,11 @@ description: Úsala al empezar o retomar el trabajo con una empresa ("vamos a tr
 3. Dile al jefe en 3 renglones: dónde nos quedamos, cuál es el siguiente paso y qué le toca a él. Abre `<Empresa>\por_aprobar.md` (plantilla: `plantilla_por_aprobar.md`) y cuenta los renglones sin respuesta; avísale cuántos hay. Si un archivo no aparece, dilo así ("no existe"), pero solo después de haber listado la carpeta.
 4. Pregunta qué se hará hoy y trabaja solo dentro de esa empresa.
 5. Convención de carpetas (tres lugares en cada empresa): `Informacion_General\` = la documentación e información que dieron al inicio; `proyectos\<Proyecto>\` = cada proyecto con todo lo suyo, incluido lo que suben el jefe u otras personas; `archivos_codexmax\<Proyecto>\` = TODO lo que generan los agentes (`runs\` corridas y reportes, `tareas\` objetivos). No las mezcles; si faltan, créalas.
-6. Abre `historial\` o los documentos de la empresa solo si el trabajo del día lo pide.
+6. Abre `archivos_codexmax\historial\` o los documentos de la empresa solo si el trabajo del día lo pide.
 
 ## Cómo saber que quedó bien
 - El jefe confirmó el resumen y el plan del día.
-- No abriste nada de otra empresa ni leíste todo `historial\`.
+- No abriste nada de otra empresa ni leíste todo `archivos_codexmax\historial\`.
 
 ## Qué nunca se hace
 - Copiar datos de la empresa dentro de `D:\Codex_Max` ni al texto de un objetivo sin permiso.

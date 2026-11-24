@@ -8,7 +8,7 @@ description: Úsala al terminar una sesión de trabajo con una empresa, o cuando
 - Ten claro con qué empresa y proyecto trabajaste hoy.
 
 ## Pasos
-1. Crea `<Empresa>\historial\AAAA-MM-DD_tema.md` con: qué se hizo, qué se decidió y por qué, qué archivos cambiaron y qué quedó a medias. Sin claves.
+1. Crea `<Empresa>\archivos_codexmax\historial\AAAA-MM-DD_tema.md` con: qué se hizo, qué se decidió y por qué, qué archivos cambiaron y qué quedó a medias. Sin claves.
 2. Reescribe `<Empresa>\_arranque.md`: actualiza proyectos activos, **siguiente paso** y **le toca al jefe**. Quita lo resuelto. Una página.
 3. Si quedaron cosas por aprobar sin hacer, revisa que estén en `<Empresa>\por_aprobar.md` y menciónalas al jefe.
 4. Si hubo corridas de Codex Max, anota en el historial el id de cada una y el resultado de `python -m codexmax status` (sin datos delicados).

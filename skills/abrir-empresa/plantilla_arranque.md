@@ -16,7 +16,7 @@
 
 ## Dónde está cada cosa
 - Documentos del negocio:
-- Historial de sesiones: `historial\`
+- Historial de sesiones: `archivos_codexmax\historial\`; memoria de la empresa: `archivos_codexmax\memoria\`
 - Claves y accesos: en el `.env` de cada proyecto (nunca en estos archivos)
 
 ## Reglas propias de esta empresa
