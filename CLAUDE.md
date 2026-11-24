@@ -12,7 +12,7 @@ Habla con el jefe en español sencillo: pasos concretos, di la verdad, "no lo s�
 | Código y trabajo de un proyecto | `D:\Empresas\<Empresa>\proyectos\<Proyecto>\` |
 | Bibliotecas grandes de habilidades | `D:\Cortex_externas\` |
 
-En cada proyecto: `entrada\` = lo que suben el jefe u otras personas; `_codexmax\` = todo lo que generan los agentes (corridas en `_codexmax\runs\`, objetivos en `_codexmax\tareas\`). Nunca se mezclan. En el taller solo quedan `data\registro.jsonl` (dónde está cada corrida) y `data\uso.jsonl` (conteos sin textos).
+En la raíz de cada empresa: `entrada\` = documentación e información general inicial. Cada proyecto (ERP, CRM, página web...) guarda todo lo suyo dentro de su propia carpeta, y en ella: `entrada\` = lo que suben el jefe u otras personas; `_codexmax\` = todo lo que generan los agentes (corridas en `_codexmax\runs\`, objetivos en `_codexmax\tareas\`). Nunca se mezclan. En el taller solo quedan `data\registro.jsonl` (dónde está cada corrida) y `data\uso.jsonl` (conteos sin textos).
 
 No copies datos de una empresa a `D:\Codex_Max` (ni a sus archivos versionados, ni a este archivo).
 

@@ -13,7 +13,7 @@ description: Úsala al empezar o retomar el trabajo con una empresa ("vamos a tr
 2. Si la empresa no existe, pregunta al jefe si quiere crearla (carpeta + `_arranque.md` + `por_aprobar.md`). Si existe pero no tiene `_arranque.md`, propón crearlo con `plantilla_arranque.md` (está junto a esta habilidad) y llénalo preguntando al jefe, máximo 5 preguntas a la vez. No inventes datos.
 3. Dile al jefe en 3 renglones: dónde nos quedamos, cuál es el siguiente paso y qué le toca a él. Abre `<Empresa>\por_aprobar.md` (plantilla: `plantilla_por_aprobar.md`) y cuenta los renglones sin respuesta; avísale cuántos hay. Si un archivo no aparece, dilo así ("no existe"), pero solo después de haber listado la carpeta.
 4. Pregunta qué se hará hoy y trabaja solo dentro de esa empresa.
-5. Convención de carpetas en cada proyecto: `entrada\` = lo que sube el jefe u otras personas; `_codexmax\` = todo lo que generan los agentes (corridas, reportes, objetivos). No mezcles las dos; si faltan, créalas.
+5. Convención de carpetas: en la raíz de la empresa, `entrada\` = la documentación e información general que dieron al inicio. Dentro de cada proyecto (`proyectos\<Proyecto>\`), todo lo suyo vive en su carpeta: `entrada\` = lo que suben el jefe u otras personas para ese proyecto; `_codexmax\` = todo lo que generan los agentes (corridas, reportes, objetivos). No las mezcles; si faltan, créalas.
 6. Abre `historial\` o los documentos de la empresa solo si el trabajo del día lo pide.
 
 ## Cómo saber que quedó bien
