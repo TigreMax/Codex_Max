@@ -338,14 +338,14 @@ class Orchestrator:
         if self.pausada_hasta is not None:
             hora = time.strftime("%Y-%m-%d %H:%M", time.localtime(self.pausada_hasta))
             avisar(f"PAUSADA POR CUOTA: {self.run_id}",
-                   f"Reinicio: {hora}. Retomar: python -m codexmax resume {self.run_id}",
+                   f"Reinicio: {hora}. Retomar: python -m codexmax resume {self.run_id}\nCarpeta: {self.run_dir}",
                    log_path=self.run_dir / "avisos.log")
         else:
             rows = self.store.all()
             hechas = sum(r["status"] == "hecha" for r in rows)
             bloqueadas = sum(r["status"] == "bloqueada" for r in rows)
             avisar(f"Corrida terminada: {self.run_id}",
-                   f"{hechas}/{len(rows)} tareas hechas; {bloqueadas} bloqueadas.",
+                   f"{hechas}/{len(rows)} tareas hechas; {bloqueadas} bloqueadas.\nReporte: {self.run_dir / 'REPORTE.md'}",
                    log_path=self.run_dir / "avisos.log")
 
     def save_outcome(self):

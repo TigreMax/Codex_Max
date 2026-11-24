@@ -147,7 +147,7 @@ def pedir_humano(titulo, detalle, comando=None, run_id="", path=None):
         if comando:
             bloque += f"\nComando exacto:\n```\n{comando}\n```\n"
         path.write_text(old + bloque, encoding="utf-8")
-    avisar(titulo, f"{detalle}\nRevisar por_aprobar.md", log_path=path.parent / "avisos.log" if path != POR_APROBAR else None)
+    avisar(titulo, f"{detalle}\nRevisar: {Path(path).resolve()}", log_path=path.parent / "avisos.log" if path != POR_APROBAR else None)
 
 
 class Bitacora:

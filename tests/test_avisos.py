@@ -92,6 +92,7 @@ class Avisos(unittest.TestCase):
             core.pedir_humano("Ayuda", "Detalle")
             core.pedir_humano("Ayuda", "Detalle")
             notify.assert_called_once()
+            self.assertIn(str(pending.resolve()), notify.call_args.args[1])   # el aviso trae la ruta completa
             self.assertIn("Ayuda", pending.read_text(encoding="utf-8"))
             pending.write_text(pending.read_text(encoding="utf-8").replace("[PENDIENTE]", "[HECHO]"), encoding="utf-8")
             core.pedir_humano("Ayuda", "Otra solicitud")
@@ -110,10 +111,12 @@ class Avisos(unittest.TestCase):
             self.assertIn("PAUSADA POR CUOTA", title)
             self.assertIn(time.strftime("%Y-%m-%d %H:%M", time.localtime(2000000000)), body)
             self.assertIn("python -m codexmax resume run-1", body)
+            self.assertIn(str(o.run_dir), body)
             o.pausada_hasta = None
             o.execute()
             self.assertEqual(notify.call_count, 2)
             self.assertIn("1/2 tareas hechas; 1 bloqueadas", notify.call_args.args[1])
+            self.assertIn(str(o.run_dir / "REPORTE.md"), notify.call_args.args[1])
 
 
 if __name__ == "__main__":
